@@ -483,7 +483,7 @@ export default function Index() {
       {selectedProduct && (
         <CatalogViewer
           productCode={selectedProduct.code}
-          catalogPath=""
+          catalogPath={null}
           open={catalogViewerOpen}
           onOpenChange={setCatalogViewerOpen}
         />
