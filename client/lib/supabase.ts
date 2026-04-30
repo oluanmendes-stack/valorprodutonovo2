@@ -19,6 +19,9 @@ export interface Product {
   marca: string;
   priceResale: number;
   priceResaleWithIPI: number;
+  distributorPrice?: number;
+  distributorPriceWithoutIPI?: number;
+  finalPriceWithoutIPI?: number;
   catalog_path?: string | null;
   created_at: string;
 }

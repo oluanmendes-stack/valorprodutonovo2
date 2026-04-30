@@ -7,6 +7,8 @@ export interface Product {
   description: string;
   price: number;
   priceWithIPI: number;
+  distributorPriceWithoutIPI?: number;
+  finalPriceWithoutIPI?: number;
   manufacturer?: string;
 }
 
@@ -27,6 +29,8 @@ export function useProducts() {
             description: p.description,
             price: p.priceResale,
             priceWithIPI: p.priceResaleWithIPI,
+            distributorPriceWithoutIPI: p.distributorPriceWithoutIPI || 0,
+            finalPriceWithoutIPI: p.finalPriceWithoutIPI || 0,
             manufacturer: p.code.split("-")[0] || "Geral",
           })
         );
@@ -61,6 +65,8 @@ export function useProducts() {
           description: p.description,
           price: p.priceResale,
           priceWithIPI: p.priceResaleWithIPI,
+          distributorPriceWithoutIPI: p.distributorPriceWithoutIPI || 0,
+          finalPriceWithoutIPI: p.finalPriceWithoutIPI || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
         }));
     } catch (error) {
@@ -79,6 +85,8 @@ export function useProducts() {
           description: product.description,
           price: product.priceResale,
           priceWithIPI: product.priceResaleWithIPI,
+          distributorPriceWithoutIPI: product.distributorPriceWithoutIPI || 0,
+          finalPriceWithoutIPI: product.finalPriceWithoutIPI || 0,
           manufacturer: product.code.split("-")[0] || "Geral",
         };
       }
@@ -102,6 +110,8 @@ export function useProducts() {
           description: p.description,
           price: p.priceResale,
           priceWithIPI: p.priceResaleWithIPI,
+          distributorPriceWithoutIPI: p.distributorPriceWithoutIPI || 0,
+          finalPriceWithoutIPI: p.finalPriceWithoutIPI || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
         })
       );

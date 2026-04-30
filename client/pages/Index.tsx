@@ -313,9 +313,28 @@ export default function Index() {
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">
-                        Preço Unit. Distribuidor c/ IPI
+                        Preço Distribuidor s/ IPI
                       </p>
                       <p className="text-2xl font-700 text-primary">
+                        R$ {formatPrice(selectedProduct.distributorPriceWithoutIPI || selectedProduct.price)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Preço Unit. Final s/ IPI
+                      </p>
+                      <p className="text-2xl font-700 text-secondary">
+                        R$ {formatPrice(selectedProduct.finalPriceWithoutIPI || selectedProduct.priceWithIPI)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Preço Unit. Distribuidor c/ IPI
+                      </p>
+                      <p className="text-lg font-600 text-muted-foreground">
                         R$ {formatPrice(selectedProduct.price)}
                       </p>
                     </div>
@@ -323,7 +342,7 @@ export default function Index() {
                       <p className="text-sm text-muted-foreground mb-1">
                         Preço Unit. Final c/ IPI
                       </p>
-                      <p className="text-2xl font-700 text-secondary">
+                      <p className="text-lg font-600 text-muted-foreground">
                         R$ {formatPrice(selectedProduct.priceWithIPI)}
                       </p>
                     </div>

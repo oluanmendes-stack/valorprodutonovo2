@@ -9,6 +9,8 @@ interface Product {
   description: string;
   price: number;
   priceWithIPI: number;
+  distributorPriceWithoutIPI?: number;
+  finalPriceWithoutIPI?: number;
 }
 
 interface ImportExportProductsProps {
@@ -33,7 +35,7 @@ export default function ImportExportProducts({
 
     try {
       // Create CSV header
-      const headers = ["Fabricante", "Descrição", "Preço revenda", "revenda c/ IPI"];
+      const headers = ["Fabricante", "Descrição", "Preço revenda", "revenda c/ IPI", "Preço Distribuidor s/ IPI", "Preço Unit. Final s/ IPI"];
       const csvContent = [
         headers.join(";"),
         ...products.map((p) =>
@@ -42,6 +44,8 @@ export default function ImportExportProducts({
             p.description,
             p.price.toString().replace(".", ","),
             p.priceWithIPI.toString().replace(".", ","),
+            (p.distributorPriceWithoutIPI || "").toString().replace(".", ","),
+            (p.finalPriceWithoutIPI || "").toString().replace(".", ","),
           ].join(";")
         ),
       ].join("\n");
@@ -90,6 +94,10 @@ export default function ImportExportProducts({
           const price = parseFloat(parts[2].trim().replace(",", "."));
           // Accept both "revenda c/ IPI" and "Preço Final c/ IPI"
           const priceWithIPI = parseFloat(parts[3].trim().replace(",", "."));
+          // Optional: Preço Distribuidor s/ IPI
+          const distributorPriceWithoutIPI = parts.length > 4 ? parseFloat(parts[4].trim().replace(",", ".")) : undefined;
+          // Optional: Preço Unit. Final s/ IPI
+          const finalPriceWithoutIPI = parts.length > 5 ? parseFloat(parts[5].trim().replace(",", ".")) : undefined;
 
           if (code && description && !isNaN(price) && !isNaN(priceWithIPI)) {
             productsToImport.push({
@@ -97,6 +105,8 @@ export default function ImportExportProducts({
               description,
               price,
               priceWithIPI,
+              ...(distributorPriceWithoutIPI && !isNaN(distributorPriceWithoutIPI) && { distributorPriceWithoutIPI }),
+              ...(finalPriceWithoutIPI && !isNaN(finalPriceWithoutIPI) && { finalPriceWithoutIPI }),
             });
           }
         }
@@ -108,10 +118,27 @@ export default function ImportExportProducts({
         return;
       }
 
-      // Note: Import via API is not available in the deployed version
-      // This feature would require backend support
-      toast.info("Importação de CSV requer acesso ao servidor backend");
-      console.log("Products parsed (not imported):", productsToImport);
+      // Make API call to import products
+      const response = await fetch("/api/products/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ products: productsToImport }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Erro ao importar produtos");
+        console.error("Import error:", data);
+        return;
+      }
+
+      toast.success(`${data.count || productsToImport.length} produto(s) importado(s) com sucesso!`);
+      if (onImport) {
+        onImport();
+      }
     } catch (error) {
       console.error("Error importing CSV:", error);
       toast.error("Erro ao processar arquivo CSV");
@@ -136,9 +163,29 @@ export default function ImportExportProducts({
 
     if (!confirmed) return;
 
-    // Note: Delete via API is not available in the deployed version
-    // This feature would require backend support
-    toast.info("Exclusão de produtos requer acesso ao servidor backend");
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/products/delete-all", {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Erro ao apagar produtos");
+        return;
+      }
+
+      toast.success(`${data.deletedCount || 0} produto(s) apagado(s) com sucesso!`);
+      if (onDelete) {
+        onDelete();
+      }
+    } catch (error) {
+      console.error("Error deleting products:", error);
+      toast.error("Erro ao apagar produtos");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -199,11 +246,12 @@ export default function ImportExportProducts({
         </div>
 
         <div className="text-xs text-muted-foreground mt-2 p-3 bg-muted rounded-lg">
-          <p className="font-semibold mb-2">Formato CSV esperado (ambos aceitos):</p>
-          <p>Opção 1: Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
-          <p>Opção 2: Fabricante;Descrição;Preço Distribuidor c/ IPI;Preço Final c/ IPI</p>
-          <p className="mt-2">Exemplo:</p>
+          <p className="font-semibold mb-2">Formato CSV esperado:</p>
+          <p>Obrigatório: Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
+          <p>Opcional: ;Preço Distribuidor s/ IPI;Preço Unit. Final s/ IPI</p>
+          <p className="mt-2">Exemplos:</p>
           <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.511,72;2.790,80</p>
+          <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.511,72;2.790,80;2.300,00;2.500,00</p>
         </div>
       </div>
     </Card>
