@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSupabaseCompatibility } from "@/hooks/useSupabaseCompatibility";
-import { Search, Trash2, Edit, Plus, ChevronDown, X, Check, Filter } from "lucide-react";
+import { Search, Trash2, Edit, Plus, ChevronDown, X, Check, Filter, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 interface CompatibilityRecord {
@@ -186,6 +186,11 @@ export default function CompatibilityMini() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditingRecord(null);
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast.success(`Código "${code}" copiado!`);
   };
 
   return (
@@ -576,15 +581,15 @@ export default function CompatibilityMini() {
                   ) : (
                     // View Mode
                     <>
-                      <button
-                        onClick={() =>
-                          setExpandedId(
-                            expandedId === record.id ? null : record.id
-                          )
-                        }
-                        className="w-full text-left p-3 hover:bg-muted/50 transition flex items-start justify-between gap-3"
-                      >
-                        <div className="flex-1 min-w-0">
+                      <div className="p-3 hover:bg-muted/50 transition flex items-start justify-between gap-3">
+                        <button
+                          onClick={() =>
+                            setExpandedId(
+                              expandedId === record.id ? null : record.id
+                            )
+                          }
+                          className="flex-1 text-left"
+                        >
                           <div className="font-500 text-sm">{record.equipamento}</div>
                           <div className="text-xs text-muted-foreground mt-1">
                             {record.fabricante} {record.modelo}
@@ -592,13 +597,27 @@ export default function CompatibilityMini() {
                           <div className="text-xs font-mono text-primary mt-0.5">
                             {record.acessorio}
                           </div>
+                        </button>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyCode(record.acessorio);
+                            }}
+                            className="h-6 w-6 p-0"
+                            title="Copiar código"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <ChevronDown
+                            className={`w-4 h-4 text-muted-foreground transition ${
+                              expandedId === record.id ? "rotate-180" : ""
+                            }`}
+                          />
                         </div>
-                        <ChevronDown
-                          className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition ${
-                            expandedId === record.id ? "rotate-180" : ""
-                          }`}
-                        />
-                      </button>
+                      </div>
 
                       {/* Expanded Details */}
                       {expandedId === record.id && (
