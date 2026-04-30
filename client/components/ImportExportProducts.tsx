@@ -108,10 +108,27 @@ export default function ImportExportProducts({
         return;
       }
 
-      // Note: Import via API is not available in the deployed version
-      // This feature would require backend support
-      toast.info("Importação de CSV requer acesso ao servidor backend");
-      console.log("Products parsed (not imported):", productsToImport);
+      // Make API call to import products
+      const response = await fetch("/api/products/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ products: productsToImport }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Erro ao importar produtos");
+        console.error("Import error:", data);
+        return;
+      }
+
+      toast.success(`${data.count || productsToImport.length} produto(s) importado(s) com sucesso!`);
+      if (onImport) {
+        onImport();
+      }
     } catch (error) {
       console.error("Error importing CSV:", error);
       toast.error("Erro ao processar arquivo CSV");
@@ -136,9 +153,29 @@ export default function ImportExportProducts({
 
     if (!confirmed) return;
 
-    // Note: Delete via API is not available in the deployed version
-    // This feature would require backend support
-    toast.info("Exclusão de produtos requer acesso ao servidor backend");
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/products/delete-all", {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Erro ao apagar produtos");
+        return;
+      }
+
+      toast.success(`${data.deletedCount || 0} produto(s) apagado(s) com sucesso!`);
+      if (onDelete) {
+        onDelete();
+      }
+    } catch (error) {
+      console.error("Error deleting products:", error);
+      toast.error("Erro ao apagar produtos");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -199,9 +236,8 @@ export default function ImportExportProducts({
         </div>
 
         <div className="text-xs text-muted-foreground mt-2 p-3 bg-muted rounded-lg">
-          <p className="font-semibold mb-2">Formato CSV esperado (ambos aceitos):</p>
-          <p>Opção 1: Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
-          <p>Opção 2: Fabricante;Descrição;Preço Distribuidor c/ IPI;Preço Final c/ IPI</p>
+          <p className="font-semibold mb-2">Formato CSV esperado:</p>
+          <p>Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
           <p className="mt-2">Exemplo:</p>
           <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.511,72;2.790,80</p>
         </div>
