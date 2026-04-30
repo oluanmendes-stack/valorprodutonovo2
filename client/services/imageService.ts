@@ -124,7 +124,7 @@ async function generateImageUrls(code: string): Promise<string[]> {
   // Start with known folders that are commonly used
   const additionalFolders: string[] = [
     // Known MED-LINKET subfolders (hard-coded common patterns)
-    "MED-LINKET/ELETRODO DESFIBRILA O",
+    "MED-LINKET/ELETRODO DESFIBRILACAO",
     "MED-LINKET/ELETRODOS",
     "MED-LINKET/ELETRODO",
     "MED-LINKET/DESFIBRILADORES",
@@ -486,7 +486,7 @@ async function tryBruteForceUrls(code: string, codeLower: string, codeUpper: str
   // Known folder patterns from MED-LINKET (prioritize known ones first)
   const commonFolders = [
     // MED-LINKET subfolders (in priority order)
-    'MED-LINKET/ELETRODO DESFIBRILA O',  // Most specific - this is the exact folder for the image
+    'MED-LINKET/ELETRODO DESFIBRILACAO',  // Most specific - this is the exact folder for the image
     'MED-LINKET/ELETRODOS',
     'MED-LINKET/ELETRODO',
     'MED-LINKET/DESFIBRILADORES',
