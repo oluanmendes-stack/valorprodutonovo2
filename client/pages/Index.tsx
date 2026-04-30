@@ -121,6 +121,10 @@ export default function Index() {
   };
 
   const handleOpenCatalog = () => {
+    if (!selectedProduct) {
+      toast.error("Selecione um produto primeiro");
+      return;
+    }
     setCatalogViewerOpen(true);
   };
 
@@ -483,7 +487,7 @@ export default function Index() {
       {selectedProduct && (
         <CatalogViewer
           productCode={selectedProduct.code}
-          catalogPath={null}
+          catalogPath={getCatalogStorageUrl(selectedProduct.code)}
           open={catalogViewerOpen}
           onOpenChange={setCatalogViewerOpen}
         />
