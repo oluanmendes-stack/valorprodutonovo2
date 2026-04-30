@@ -112,8 +112,17 @@ export default function ImageViewer({
             <p className="text-muted-foreground">Carregando imagens...</p>
           </div>
         ) : images.length === 0 ? (
-          <div className="flex items-center justify-center h-96">
-            <p className="text-muted-foreground">Nenhuma imagem encontrada</p>
+          <div className="flex flex-col items-center justify-center h-96 gap-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <p className="text-muted-foreground font-medium">Nenhuma imagem encontrada</p>
+              <p className="text-xs text-muted-foreground text-center max-w-md">
+                Procuramos por imagens com o código <strong>{productCode}</strong> em várias pastas do Supabase Storage.
+              </p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-800 max-w-md text-center">
+              <p className="font-medium mb-1">💡 Dica:</p>
+              <p>Verifique no console do navegador (F12) para ver logs detalhados da busca.</p>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-4 flex-1 overflow-hidden">

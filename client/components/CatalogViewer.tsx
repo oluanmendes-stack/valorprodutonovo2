@@ -158,12 +158,18 @@ export default function CatalogViewer({
           </div>
         ) : !catalogPath ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2">
-            <p className="text-muted-foreground font-medium text-center">Nenhum catálogo encontrado para {productCode}</p>
+            <p className="text-muted-foreground font-medium text-center">Nenhum catálogo encontrado para <strong>{productCode}</strong></p>
             {errorMsg && (
               <p className="text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 max-w-md break-all">
-                Dica técnica: {errorMsg}
+                {errorMsg}
               </p>
             )}
+            <p className="text-xs text-muted-foreground mt-2 max-w-md text-center">
+              Procuramos por arquivos com nomes como:<br/>
+              <code className="bg-muted px-2 py-1 rounded text-xs">{productCode}.doc</code>,{" "}
+              <code className="bg-muted px-2 py-1 rounded text-xs">{productCode}.docx</code>,{" "}
+              <code className="bg-muted px-2 py-1 rounded text-xs">{productCode}.pdf</code>
+            </p>
             <Button variant="ghost" size="sm" onClick={() => fetchCatalogPath()} className="mt-2">Tentar novamente</Button>
           </div>
         ) : (
