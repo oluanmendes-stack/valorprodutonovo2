@@ -14,6 +14,14 @@ export interface Product {
   finalPriceWithIPI?: number;
 }
 
+// Type helper for accessing price fields
+export type ProductWithAllPrices = Product & {
+  distributorPrice: number;
+  distributorPriceWithIPI: number;
+  finalPrice: number;
+  finalPriceWithIPI: number;
+}
+
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
