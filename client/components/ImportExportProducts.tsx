@@ -9,8 +9,6 @@ interface Product {
   description: string;
   price: number;
   priceWithIPI: number;
-  distributorPriceWithoutIPI?: number;
-  finalPriceWithoutIPI?: number;
 }
 
 interface ImportExportProductsProps {
@@ -35,7 +33,7 @@ export default function ImportExportProducts({
 
     try {
       // Create CSV header
-      const headers = ["Fabricante", "Descrição", "Preço revenda", "revenda c/ IPI", "Preço Distribuidor s/ IPI", "Preço Unit. Final s/ IPI"];
+      const headers = ["Fabricante", "Descrição", "Preço revenda", "revenda c/ IPI"];
       const csvContent = [
         headers.join(";"),
         ...products.map((p) =>
@@ -44,8 +42,6 @@ export default function ImportExportProducts({
             p.description,
             p.price.toString().replace(".", ","),
             p.priceWithIPI.toString().replace(".", ","),
-            (p.distributorPriceWithoutIPI || "").toString().replace(".", ","),
-            (p.finalPriceWithoutIPI || "").toString().replace(".", ","),
           ].join(";")
         ),
       ].join("\n");
@@ -94,10 +90,6 @@ export default function ImportExportProducts({
           const price = parseFloat(parts[2].trim().replace(",", "."));
           // Accept both "revenda c/ IPI" and "Preço Final c/ IPI"
           const priceWithIPI = parseFloat(parts[3].trim().replace(",", "."));
-          // Optional: Preço Distribuidor s/ IPI
-          const distributorPriceWithoutIPI = parts.length > 4 ? parseFloat(parts[4].trim().replace(",", ".")) : undefined;
-          // Optional: Preço Unit. Final s/ IPI
-          const finalPriceWithoutIPI = parts.length > 5 ? parseFloat(parts[5].trim().replace(",", ".")) : undefined;
 
           if (code && description && !isNaN(price) && !isNaN(priceWithIPI)) {
             productsToImport.push({
@@ -105,8 +97,6 @@ export default function ImportExportProducts({
               description,
               price,
               priceWithIPI,
-              ...(distributorPriceWithoutIPI && !isNaN(distributorPriceWithoutIPI) && { distributorPriceWithoutIPI }),
-              ...(finalPriceWithoutIPI && !isNaN(finalPriceWithoutIPI) && { finalPriceWithoutIPI }),
             });
           }
         }
@@ -247,11 +237,9 @@ export default function ImportExportProducts({
 
         <div className="text-xs text-muted-foreground mt-2 p-3 bg-muted rounded-lg">
           <p className="font-semibold mb-2">Formato CSV esperado:</p>
-          <p>Obrigatório: Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
-          <p>Opcional: ;Preço Distribuidor s/ IPI;Preço Unit. Final s/ IPI</p>
-          <p className="mt-2">Exemplos:</p>
+          <p>Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
+          <p className="mt-2">Exemplo:</p>
           <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.511,72;2.790,80</p>
-          <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.511,72;2.790,80;2.300,00;2.500,00</p>
         </div>
       </div>
     </Card>

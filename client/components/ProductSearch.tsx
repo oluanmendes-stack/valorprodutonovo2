@@ -15,8 +15,6 @@ interface Product {
   description: string;
   price: number;
   priceWithIPI: number;
-  distributorPriceWithoutIPI?: number;
-  finalPriceWithoutIPI?: number;
 }
 
 interface ProductSearchProps {

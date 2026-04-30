@@ -12,8 +12,6 @@ export interface ProductResponse {
   description: string;
   price: number;
   priceWithIPI: number;
-  distributorPriceWithoutIPI?: number;
-  finalPriceWithoutIPI?: number;
 }
 
 /**
@@ -56,8 +54,6 @@ export const getProducts: RequestHandler = async (req, res) => {
       description: item.description,
       price: item.resalePrice || item.priceResale || 0,
       priceWithIPI: item.resalePriceWithIPI || item.priceResaleWithIPI || 0,
-      distributorPriceWithoutIPI: item.distributorPriceWithoutIPI || 0,
-      finalPriceWithoutIPI: item.finalPriceWithoutIPI || 0,
     }));
 
     console.log("[getProducts] Mapped products:", products.length);
@@ -120,8 +116,6 @@ export const searchProducts: RequestHandler = async (req, res) => {
       description: item.description,
       price: item.priceResale || 0,
       priceWithIPI: item.priceResaleWithIPI || 0,
-      distributorPriceWithoutIPI: item.distributorPriceWithoutIPI || 0,
-      finalPriceWithoutIPI: item.finalPriceWithoutIPI || 0,
     }));
 
     res.json({
@@ -179,8 +173,6 @@ export const getProductByCode: RequestHandler = async (req, res) => {
       description: data.description,
       price: data.priceResale || 0,
       priceWithIPI: data.priceResaleWithIPI || 0,
-      distributorPriceWithoutIPI: data.distributorPriceWithoutIPI || 0,
-      finalPriceWithoutIPI: data.finalPriceWithoutIPI || 0,
     };
 
     res.json({
@@ -243,8 +235,6 @@ export const importProducts: RequestHandler = async (req, res) => {
         marca: p.code.trim(), // "Fabricante" field becomes the code
         priceResale: p.price,
         priceResaleWithIPI: p.priceWithIPI,
-        ...(p.distributorPriceWithoutIPI && { distributorPriceWithoutIPI: p.distributorPriceWithoutIPI }),
-        ...(p.finalPriceWithoutIPI && { finalPriceWithoutIPI: p.finalPriceWithoutIPI }),
       }));
 
     if (validProducts.length === 0) {
