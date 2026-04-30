@@ -38,9 +38,9 @@ export function getStorageUrl(bucket: string, filePath: string): string {
 export function getCatalogStorageUrl(fileName: string): string {
   // Avoid double extensions like .doc.doc
   const filename = fileName.includes('.') ? fileName : `${fileName}.doc`;
-  
-  // Note: bucket is named "catalago" due to a typo in user's Supabase setup
-  return getStorageUrl("catalago", filename);
+
+  // Bucket named "catalogo" (correct name)
+  return getStorageUrl("catalogo", filename);
 }
 
 /**
