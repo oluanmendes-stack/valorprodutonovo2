@@ -58,13 +58,21 @@ export async function preCacheFolderStructure(): Promise<void> {
     const endTime = performance.now();
 
     folderStructureCacheReady = true;
-    const totalItems = Object.values(folderStructureCache).reduce(
-      (sum, folder) => sum + folder.files.length + folder.folders.length,
-      0
-    );
+
+    // Calculate total items, filtering out non-folder entries
+    let totalItems = 0;
+    let totalFolders = 0;
+    for (const key in folderStructureCache) {
+      if (key === "_resolveReady") continue;
+      const folder = folderStructureCache[key];
+      if (folder && folder.files && folder.folders) {
+        totalItems += folder.files.length;
+        totalFolders += folder.folders.length;
+      }
+    }
 
     console.log(`[imageService] ✅ Folder structure pre-cached in ${(endTime - startTime).toFixed(2)}ms`);
-    console.log(`[imageService] Total items indexed: ${totalItems}`);
+    console.log(`[imageService] Total folders: ${totalFolders}, Total files: ${totalItems}`);
     console.log("[imageService] Full cache structure:", folderStructureCache);
   } catch (err) {
     console.error("[imageService] ❌ Error pre-caching folder structure:", err);
