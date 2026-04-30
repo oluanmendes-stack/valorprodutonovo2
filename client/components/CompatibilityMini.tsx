@@ -21,7 +21,7 @@ interface CompatibilityRecord {
 }
 
 export default function CompatibilityMini() {
-  const { records, deleteRecord, createRecord, updateRecord } = useSupabaseCompatibility();
+  const { records, deleteRecord, createRecord, updateRecord, fetchRecords } = useSupabaseCompatibility();
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -39,6 +39,11 @@ export default function CompatibilityMini() {
     foto_conexao: [],
     observacoes: "",
   });
+
+  // Load records on component mount
+  useEffect(() => {
+    fetchRecords();
+  }, []);
 
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return records;
