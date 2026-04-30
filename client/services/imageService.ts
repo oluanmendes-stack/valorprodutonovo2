@@ -42,21 +42,32 @@ export async function preCacheFolderStructure(): Promise<void> {
   }
 
   if (!shouldUseSupabaseStorage()) {
+    console.log("[imageService] Supabase Storage not enabled, skipping pre-cache");
     folderStructureCacheReady = true;
     folderStructureCache._resolveReady?.();
     return;
   }
 
   folderStructureCacheLoading = true;
-  console.log("[imageService] Starting to pre-cache folder structure...");
+  console.log("[imageService] 🚀 Starting to pre-cache folder structure...");
+  console.log("[imageService] Bucket: imagens");
 
   try {
+    const startTime = performance.now();
     await buildFolderStructure("");
+    const endTime = performance.now();
+
     folderStructureCacheReady = true;
-    console.log("[imageService] ✓ Folder structure pre-cached successfully");
-    console.log("[imageService] Cached structure:", folderStructureCache);
+    const totalItems = Object.values(folderStructureCache).reduce(
+      (sum, folder) => sum + folder.files.length + folder.folders.length,
+      0
+    );
+
+    console.log(`[imageService] ✅ Folder structure pre-cached in ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`[imageService] Total items indexed: ${totalItems}`);
+    console.log("[imageService] Full cache structure:", folderStructureCache);
   } catch (err) {
-    console.error("[imageService] Error pre-caching folder structure:", err);
+    console.error("[imageService] ❌ Error pre-caching folder structure:", err);
     folderStructureCacheReady = true;
   } finally {
     folderStructureCacheLoading = false;
@@ -69,19 +80,24 @@ export async function preCacheFolderStructure(): Promise<void> {
  */
 async function buildFolderStructure(folderPath: string): Promise<void> {
   try {
-    console.log(`[imageService] Building structure for: ${folderPath || "root"}`);
+    const displayPath = folderPath || "root";
+    console.log(`[imageService] Building structure for: ${displayPath}`);
+
     const { data, error } = await supabase.storage
       .from("imagens")
       .list(folderPath || "", { limit: 500 });
 
     if (error) {
-      console.debug(`[imageService] Error listing ${folderPath || "root"}:`, error);
+      console.error(`[imageService] ✗ Error listing ${displayPath}:`, error);
       return;
     }
 
     if (!data) {
+      console.warn(`[imageService] ⚠ No data returned for ${displayPath}`);
       return;
     }
+
+    console.log(`[imageService] → ${displayPath} contains ${data.length} items:`, data);
 
     const folders: string[] = [];
     const files: { name: string; path: string }[] = [];
@@ -92,16 +108,18 @@ async function buildFolderStructure(folderPath: string): Promise<void> {
 
       if (isFolder) {
         folders.push(item.name);
+        console.log(`[imageService]   📁 ${item.name}/ (folder)`);
         // Recursively build structure for subfolders
         await buildFolderStructure(itemPath);
       } else {
         files.push({ name: item.name, path: itemPath });
+        console.log(`[imageService]   📄 ${item.name}`);
       }
     }
 
     folderStructureCache[folderPath || "root"] = { folders, files };
   } catch (err) {
-    console.error(`[imageService] Error building folder structure:`, err);
+    console.error(`[imageService] ✗ Error building folder structure:`, err);
   }
 }
 
