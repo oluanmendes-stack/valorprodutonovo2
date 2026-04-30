@@ -17,8 +17,97 @@ export interface ProductImage {
 // Cache for checked image paths to avoid repeated failed requests
 const imageCache = new Map<string, string[]>();
 
+// Cache for folder structure
+interface FolderStructure {
+  [path: string]: {
+    folders: string[];
+    files: { name: string; path: string }[];
+  };
+}
+const folderStructureCache: FolderStructure = {};
+let folderStructureCacheReady = false;
+let folderStructureCacheLoading = false;
+const folderCachePromise = new Promise<void>((resolve) => {
+  folderStructureCache._resolveReady = resolve;
+});
+
+/**
+ * Pre-load the folder structure of the imagens bucket
+ * This should be called once at app startup to cache all folders and files
+ */
+export async function preCacheFolderStructure(): Promise<void> {
+  if (folderStructureCacheReady || folderStructureCacheLoading) {
+    console.log("[imageService] Folder structure cache already loaded or loading");
+    return;
+  }
+
+  if (!shouldUseSupabaseStorage()) {
+    folderStructureCacheReady = true;
+    folderStructureCache._resolveReady?.();
+    return;
+  }
+
+  folderStructureCacheLoading = true;
+  console.log("[imageService] Starting to pre-cache folder structure...");
+
+  try {
+    await buildFolderStructure("");
+    folderStructureCacheReady = true;
+    console.log("[imageService] ✓ Folder structure pre-cached successfully");
+    console.log("[imageService] Cached structure:", folderStructureCache);
+  } catch (err) {
+    console.error("[imageService] Error pre-caching folder structure:", err);
+    folderStructureCacheReady = true;
+  } finally {
+    folderStructureCacheLoading = false;
+    folderStructureCache._resolveReady?.();
+  }
+}
+
+/**
+ * Recursively build the folder structure and cache it
+ */
+async function buildFolderStructure(folderPath: string): Promise<void> {
+  try {
+    console.log(`[imageService] Building structure for: ${folderPath || "root"}`);
+    const { data, error } = await supabase.storage
+      .from("imagens")
+      .list(folderPath || "", { limit: 500 });
+
+    if (error) {
+      console.debug(`[imageService] Error listing ${folderPath || "root"}:`, error);
+      return;
+    }
+
+    if (!data) {
+      return;
+    }
+
+    const folders: string[] = [];
+    const files: { name: string; path: string }[] = [];
+
+    for (const item of data) {
+      const itemPath = folderPath ? `${folderPath}/${item.name}` : item.name;
+      const isFolder = !item.id;
+
+      if (isFolder) {
+        folders.push(item.name);
+        // Recursively build structure for subfolders
+        await buildFolderStructure(itemPath);
+      } else {
+        files.push({ name: item.name, path: itemPath });
+      }
+    }
+
+    folderStructureCache[folderPath || "root"] = { folders, files };
+  } catch (err) {
+    console.error(`[imageService] Error building folder structure:`, err);
+  }
+}
+
 /**
  * Find images for a product code
+ * Uses pre-cached folder structure if available, otherwise falls back to dynamic search
  * Directly searches Supabase Storage with all naming pattern variations
  * No server API dependency - pure client-side
  */
@@ -56,7 +145,8 @@ export async function findProductImages(code: string): Promise<string[]> {
 
 /**
  * Generate all possible image URLs for a product code
- * Searches recursively through the imagens bucket
+ * Uses pre-cached folder structure if available for faster search
+ * Falls back to dynamic search if cache is not ready
  * Looks for files containing the complete product code (case-insensitive)
  */
 async function generateImageUrls(code: string): Promise<string[]> {
@@ -69,6 +159,45 @@ async function generateImageUrls(code: string): Promise<string[]> {
     // Fallback for local development
     return images;
   }
+
+  // Wait for cache to be ready if it's still loading
+  if (folderStructureCacheLoading) {
+    console.log(`[generateImageUrls] Waiting for folder cache to be ready...`);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to avoid busy loop
+  }
+
+  // Use cached folder structure if available
+  if (folderStructureCacheReady && Object.keys(folderStructureCache).length > 0) {
+    console.log(`[generateImageUrls] Using cached folder structure`);
+
+    // Search through all cached files
+    const searchCachedFiles = (structure: FolderStructure) => {
+      for (const folderPath in structure) {
+        if (folderPath === "_resolveReady") continue;
+        const { files } = structure[folderPath];
+        for (const file of files) {
+          const nameLower = file.name.toLowerCase();
+          if (nameLower.includes(codeLower)) {
+            const storageUrl = getImageStorageUrl(file.path);
+            if (storageUrl && !images.includes(storageUrl)) {
+              images.push(storageUrl);
+              console.log(`[generateImageUrls] ✓ Found: ${file.path}`);
+            }
+          }
+        }
+      }
+    };
+
+    searchCachedFiles(folderStructureCache);
+
+    if (images.length > 0) {
+      console.log(`[generateImageUrls] Total URLs found from cache: ${images.length}`);
+      return images;
+    }
+  }
+
+  // Fallback: dynamic search if cache not ready or empty
+  console.log(`[generateImageUrls] Cache not ready or no results, falling back to dynamic search`);
 
   // List all items in the root of imagens bucket
   try {
