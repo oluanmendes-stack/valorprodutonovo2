@@ -233,7 +233,6 @@ export const importProducts: RequestHandler = async (req, res) => {
         code: p.code.trim(),
         description: p.description.trim(),
         marca: p.code.trim(), // "Fabricante" field becomes the code
-        price_distributor: 0, // Default value
         price_resale: p.price,
         price_resale_with_ipi: p.priceWithIPI,
       }));
