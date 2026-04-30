@@ -291,8 +291,9 @@ async function generateBatchReportClientSide(
  */
 export async function findCatalogFileDirect(code: string): Promise<string | null> {
   try {
+    // First, try listing all files in the catalog bucket
     const { data: files, error } = await supabase.storage.from("catalogo").list('', {
-      limit: 1000,
+      limit: 10000,
     });
 
     if (error || !files) {
@@ -301,17 +302,41 @@ export async function findCatalogFileDirect(code: string): Promise<string | null
     }
 
     const searchCode = normalizeCode(code);
+    const searchCodeUpper = code.toUpperCase();
+    const searchCodeLower = code.toLowerCase();
 
-    // Find a file that starts with the code or matches patterns
+    // Find a file that matches the code - with multiple strategies
     const foundFile = files.find(file => {
       const fileName = normalizeCode(file.name);
-      return (
-        fileName === searchCode ||
+      const fileNameRaw = file.name;
+
+      // Strategy 1: Exact normalized match
+      if (fileName === searchCode) return true;
+
+      // Strategy 2: Match with common extensions
+      if (
         fileName === `${searchCode}.doc` ||
         fileName === `${searchCode}.docx` ||
-        fileName === `${searchCode}.pdf` ||
-        fileName.startsWith(`${searchCode}.`)
-      );
+        fileName === `${searchCode}.pdf`
+      ) return true;
+
+      // Strategy 3: Starts with code (handles files like CODE-1.doc, CODE_variant.docx)
+      if (fileName.startsWith(`${searchCode}.`)) return true;
+
+      // Strategy 4: Case-insensitive exact match on raw filename without considering extensions
+      const fileNameWithoutExt = fileNameRaw.split('.').slice(0, -1).join('.');
+      if (normalizeCode(fileNameWithoutExt) === searchCode) return true;
+
+      // Strategy 5: Direct case-sensitive contains for codes with special characters
+      if (fileNameRaw.includes(searchCodeUpper) || fileNameRaw.includes(searchCodeLower) || fileNameRaw.includes(code)) {
+        // But make sure it's at the beginning or after a path separator
+        const baseName = fileNameRaw.split('/').pop() || '';
+        if (baseName.startsWith(searchCodeUpper) || baseName.startsWith(searchCodeLower) || baseName.startsWith(code)) {
+          return true;
+        }
+      }
+
+      return false;
     });
 
     if (foundFile) {
@@ -319,6 +344,7 @@ export async function findCatalogFileDirect(code: string): Promise<string | null
       return `${SUPABASE_URL}/storage/v1/object/public/catalogo/${encodeURIComponent(foundFile.name)}`;
     }
 
+    console.warn(`[findCatalogFileDirect] No catalog file found for code: ${code} (normalized: ${searchCode})`);
     return null;
   } catch (err) {
     console.error("Error in findCatalogFileDirect:", err);

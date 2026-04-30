@@ -25,22 +25,30 @@ const imageCache = new Map<string, string[]>();
 export async function findProductImages(code: string): Promise<string[]> {
   // Check cache first
   if (imageCache.has(code)) {
-    return imageCache.get(code) || [];
+    const cached = imageCache.get(code) || [];
+    console.log(`[findProductImages] Using cached result: ${cached.length} images for ${code}`);
+    return cached;
   }
 
   try {
+    console.log(`[findProductImages] Searching for images of product code: ${code}`);
     const images = await generateImageUrls(code);
 
     // Cache the result
     imageCache.set(code, images);
 
     if (images.length === 0) {
-      console.info(`No image URLs generated for product code: ${code}`);
+      console.warn(`[findProductImages] No image URLs generated for product code: ${code}`);
+    } else {
+      console.log(`[findProductImages] Found ${images.length} images for product code: ${code}`);
+      images.forEach((img, idx) => {
+        console.debug(`  [${idx + 1}] ${img}`);
+      });
     }
 
     return images;
   } catch (error) {
-    console.error(`Error finding images for ${code}:`, error);
+    console.error(`[findProductImages] Error finding images for ${code}:`, error);
     imageCache.set(code, []);
     return [];
   }
@@ -98,6 +106,7 @@ async function generateImageUrls(code: string): Promise<string[]> {
   const validFileNames = new Set(allPatterns);
 
   // Known brand/category folders in Supabase Storage
+  // These are the main brand folders to search
   const brands = [
     "", // ROOT
     "TECNOPRINT",
@@ -107,6 +116,32 @@ async function generateImageUrls(code: string): Promise<string[]> {
     "GABMED",
     "CONTEC",
   ];
+
+  // Additional product category folders within MED-LINKET and other brands
+  // that might contain product images
+  const additionalFolders: string[] = [];
+
+  // For MED-LINKET, we'll try to list subdirectories dynamically
+  try {
+    console.log(`[generateImageUrls] Attempting to list subdirectories in MED-LINKET...`);
+    const { data: medLinketContents } = await supabase.storage
+      .from("imagens")
+      .list("MED-LINKET", { limit: 500 });
+
+    if (medLinketContents && medLinketContents.length > 0) {
+      console.log(`[generateImageUrls] Found ${medLinketContents.length} items in MED-LINKET`);
+      // Add folders found in MED-LINKET
+      for (const item of medLinketContents) {
+        if (item.id) { // It's a folder/directory
+          additionalFolders.push(`MED-LINKET/${item.name}`);
+          console.debug(`[generateImageUrls] Added subfolder: MED-LINKET/${item.name}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.debug(`[generateImageUrls] Could not list MED-LINKET subdirectories:`, err);
+    // Silently fail, we'll still try the main brands
+  }
 
   // If not using Supabase storage (e.g. local API mode), fallback to brute force
   if (!shouldUseSupabaseStorage()) {
@@ -125,59 +160,99 @@ async function generateImageUrls(code: string): Promise<string[]> {
   // Check Supabase Storage API directly
   try {
     const listPromises: Promise<any>[] = [];
-    
+
     // Create unique search terms to reduce API calls
     const searchTerms = Array.from(new Set([code, codeLower, codeUpper]));
 
-    for (const folder of brands) {
+    // Combine all folders to search
+    const allFolders = [...brands, ...additionalFolders];
+    console.log(`[generateImageUrls] Searching for "${code}" in folders:`, allFolders);
+    console.log(`[generateImageUrls] Search terms:`, searchTerms);
+
+    for (const folder of allFolders) {
       for (const term of searchTerms) {
         listPromises.push(
           supabase.storage.from("imagens").list(folder, {
             search: term,
             limit: 100
-          }).then(({ data, error }) => ({ folder, data, error, term }))
+          }).then(({ data, error }) => ({
+            folder,
+            data,
+            error,
+            term,
+            success: !error
+          }))
         );
       }
     }
 
     // Await all searches concurrently
+    console.log(`[generateImageUrls] Making ${listPromises.length} API calls to Supabase...`);
     const listResults = await Promise.all(listPromises);
     const addedUrls = new Set<string>();
+    let totalFilesFound = 0;
 
     for (const res of listResults) {
-      if (res.error || !res.data) continue;
+      if (res.error) {
+        console.debug(`[generateImageUrls] Error listing ${res.folder} with term "${res.term}":`, res.error);
+        continue;
+      }
+
+      if (!res.data || res.data.length === 0) {
+        console.debug(`[generateImageUrls] No files in ${res.folder} for term "${res.term}"`);
+        continue;
+      }
+
+      console.log(`[generateImageUrls] Found ${res.data.length} files in folder "${res.folder}" for term "${res.term}"`);
+      totalFilesFound += res.data.length;
 
       for (const file of res.data) {
         // As requested, appear just by containing the complete code
         const nameLower = file.name.toLowerCase();
         const termLower = res.term.toLowerCase();
-        
+
         if (nameLower.includes(termLower)) {
           const imagePath = res.folder ? `${res.folder}/${file.name}` : file.name;
           const storageUrl = getImageStorageUrl(imagePath);
-          
+
           if (storageUrl && !addedUrls.has(storageUrl)) {
             addedUrls.add(storageUrl);
             images.push(storageUrl);
+            console.debug(`[generateImageUrls] Added image: ${file.name} from ${res.folder}`);
           }
         }
       }
     }
-    
+
+    console.log(`[generateImageUrls] Total files found across all folders: ${totalFilesFound}`);
+    console.log(`[generateImageUrls] Total unique image URLs generated: ${images.length}`);
+
     // Sort to prioritize exact matches over substring matches, base match over suffixed versions, root over brands
     images.sort((a, b) => {
       // Prioritize exact matches (which were in our validFileNames set)
       const aIsExact = Array.from(validFileNames).some(v => a.includes(encodeURIComponent(v)));
       const bIsExact = Array.from(validFileNames).some(v => b.includes(encodeURIComponent(v)));
-      
+
       if (aIsExact && !bIsExact) return -1;
       if (!aIsExact && bIsExact) return 1;
-      
+
       return a.length - b.length;
     });
-    
+
   } catch (err) {
     console.error("[Images] Error searching Supabase API:", err);
+  }
+
+  // If we still haven't found anything, try a deep search in all subfolders
+  if (images.length === 0) {
+    console.log(`[generateImageUrls] No images found via search API, attempting deep folder scan...`);
+    try {
+      const deepSearchResults = await searchAllSubfolders(code, codeLower, codeUpper);
+      images.push(...deepSearchResults);
+      console.log(`[generateImageUrls] Deep search found ${deepSearchResults.length} images`);
+    } catch (err) {
+      console.debug(`[generateImageUrls] Deep search failed:`, err);
+    }
   }
 
   return images;
@@ -279,6 +354,84 @@ export async function findImagesFlexible(code: string): Promise<string[]> {
     const cleanCode = code.replace(/[^a-zA-Z0-9]/g, '');
     if (cleanCode !== code) {
       images = await findProductImages(cleanCode);
+    }
+  }
+
+  return images;
+}
+
+/**
+ * Deep search function that recursively looks through all subfolders
+ * Used as a fallback when the search API doesn't find images
+ */
+async function searchAllSubfolders(code: string, codeLower: string, codeUpper: string): Promise<string[]> {
+  const images: string[] = [];
+  const searchTerms = [code, codeLower, codeUpper];
+
+  // Start with the root and known brand folders
+  const mainFolders = [
+    "",
+    "TECNOPRINT",
+    "PHYSIO CONTROL",
+    "MEDMAX",
+    "MED-LINKET",
+    "GABMED",
+    "CONTEC",
+  ];
+
+  for (const mainFolder of mainFolders) {
+    try {
+      console.log(`[searchAllSubfolders] Listing contents of "${mainFolder}"`);
+      const { data: contents } = await supabase.storage
+        .from("imagens")
+        .list(mainFolder, { limit: 500 });
+
+      if (!contents) continue;
+
+      // Look for files in this folder
+      for (const item of contents) {
+        if (!item.id) { // It's a file, not a folder
+          const itemName = item.name.toLowerCase();
+          if (searchTerms.some(term => itemName.includes(term.toLowerCase()))) {
+            const imagePath = mainFolder ? `${mainFolder}/${item.name}` : item.name;
+            const storageUrl = getImageStorageUrl(imagePath);
+            if (storageUrl && !images.includes(storageUrl)) {
+              images.push(storageUrl);
+              console.log(`[searchAllSubfolders] Found image: ${imagePath}`);
+            }
+          }
+        } else {
+          // It's a subfolder, try to search inside it
+          const subfolderPath = mainFolder ? `${mainFolder}/${item.name}` : item.name;
+          console.log(`[searchAllSubfolders] Searching in subfolder: ${subfolderPath}`);
+
+          try {
+            const { data: subcontents } = await supabase.storage
+              .from("imagens")
+              .list(subfolderPath, { limit: 500 });
+
+            if (subcontents) {
+              for (const subitem of subcontents) {
+                if (!subitem.id) { // It's a file
+                  const itemName = subitem.name.toLowerCase();
+                  if (searchTerms.some(term => itemName.includes(term.toLowerCase()))) {
+                    const imagePath = `${subfolderPath}/${subitem.name}`;
+                    const storageUrl = getImageStorageUrl(imagePath);
+                    if (storageUrl && !images.includes(storageUrl)) {
+                      images.push(storageUrl);
+                      console.log(`[searchAllSubfolders] Found image in subfolder: ${imagePath}`);
+                    }
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.debug(`[searchAllSubfolders] Could not list subfolder ${subfolderPath}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.debug(`[searchAllSubfolders] Error listing folder "${mainFolder}":`, err);
     }
   }
 
