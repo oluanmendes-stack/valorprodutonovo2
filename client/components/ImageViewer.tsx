@@ -1,0 +1,259 @@
+import { useState, useEffect } from "react";
+import { useImages } from "@/hooks/useImages";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Link as LinkIcon, Copy, EyeOff } from "lucide-react";
+import { toast } from "sonner";
+
+interface ImageViewerProps {
+  productCode: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function ImageViewer({
+  productCode,
+  open,
+  onOpenChange,
+}: ImageViewerProps) {
+  const { images, loading, findImages, openImage, rejectImage } = useImages();
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Load images when dialog opens or product code changes
+  useEffect(() => {
+    if (open) {
+      findImages(productCode);
+      setCurrentIndex(0);
+    }
+  }, [open, productCode, findImages]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    onOpenChange(newOpen);
+  };
+
+  const currentImage = images[currentIndex];
+
+  const handleNext = () => {
+    if (currentIndex < images.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const handleOpenImage = async () => {
+    if (currentImage) {
+      await openImage(currentImage);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!currentImage) return;
+
+    try {
+      const response = await fetch(currentImage);
+      if (!response.ok) throw new Error("Failed to download image");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = currentImage.split("/").pop() || "image";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Imagem baixada");
+    } catch (err) {
+      toast.error("Erro ao baixar imagem");
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    if (!currentImage) return;
+
+    const shareUrl = `${window.location.origin}${currentImage}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Link copiado para clipboard!");
+  };
+
+  const handleReject = () => {
+    if (!currentImage) return;
+    rejectImage(productCode, currentImage);
+    // If we're at the end of the list and we rejected it, move back one
+    // or to 0 if none left
+    if (currentIndex >= images.length - 1) {
+      setCurrentIndex(Math.max(0, images.length - 2));
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-4">
+        <DialogHeader>
+          <DialogTitle>Fotos do Produto - {productCode}</DialogTitle>
+          <DialogDescription>Visualizar e gerenciar fotos do produto</DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-96">
+            <p className="text-muted-foreground">Carregando imagens...</p>
+          </div>
+        ) : images.length === 0 ? (
+          <div className="flex items-center justify-center h-96">
+            <p className="text-muted-foreground">Nenhuma imagem encontrada</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+            {/* Main image display */}
+            <div className="flex items-center justify-center bg-muted rounded-lg overflow-hidden flex-1 max-h-[calc(90vh-300px)]">
+              {currentImage && (
+                <>
+                  <img
+                    src={currentImage}
+                    alt={`Produto ${productCode} - Imagem ${currentIndex + 1}`}
+                    className="max-w-full max-h-full object-contain p-2"
+                    onError={(e) => {
+                      // Handle missing images gracefully
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'none';
+                      const container = img.parentElement;
+                      if (container && !container.querySelector('[data-error-shown]')) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.setAttribute('data-error-shown', 'true');
+                        errorDiv.className = 'flex flex-col items-center justify-center h-96 text-muted-foreground';
+                        errorDiv.innerHTML = `
+                          <p class="text-center">
+                            <strong>Imagem não encontrada</strong>
+                            <br/>
+                            <span class="text-xs break-all mt-2 block">${currentImage}</span>
+                          </p>
+                        `;
+                        container.appendChild(errorDiv);
+                      }
+                    }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Image navigation and info */}
+            <div className="space-y-4">
+              {/* Counter and navigation buttons */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {currentIndex + 1} de {images.length}
+                </span>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrev}
+                    disabled={currentIndex === 0}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNext}
+                    disabled={currentIndex === images.length - 1}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyShareLink}
+                    className="gap-2"
+                    title="Copiar link para compartilhar com cliente"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span className="hidden sm:inline">Link</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownload}
+                    className="gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Baixar</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenImage}
+                    className="gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span className="hidden sm:inline">Abrir</span>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleReject}
+                    className="gap-2"
+                    title="Ocultar esta foto para este produto"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                    <span className="hidden sm:inline">Ocultar</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Image thumbnails */}
+              <ScrollArea className="w-full">
+                <div className="flex gap-2 pb-4">
+                  {images.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentIndex(index)}
+                      className={`flex-shrink-0 border-2 rounded transition-colors ${
+                        index === currentIndex
+                          ? "border-primary"
+                          : "border-transparent hover:border-muted-foreground"
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-16 h-16 object-cover rounded bg-muted"
+                        onError={(e) => {
+                          // Show placeholder for failed images
+                          const target = e.target as HTMLImageElement;
+                          target.style.opacity = '0.5';
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* File path info */}
+              <div className="bg-muted p-3 rounded text-xs text-muted-foreground break-all">
+                {currentImage}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
