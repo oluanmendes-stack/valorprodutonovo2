@@ -73,34 +73,46 @@ async function generateImageUrls(code: string): Promise<string[]> {
   // List all items in the root of imagens bucket
   try {
     console.log(`[generateImageUrls] Listing root of imagens bucket...`);
-    const { data: rootContents } = await supabase.storage
+    const { data: rootContents, error: rootError } = await supabase.storage
       .from("imagens")
       .list("", { limit: 500 });
 
-    if (rootContents && rootContents.length > 0) {
-      // Process all root-level items (both files and folders)
-      for (const item of rootContents) {
-        const itemPath = item.name;
-        const isFolder = !item.id; // Folders don't have an id
+    if (rootError) {
+      console.error(`[generateImageUrls] Error listing root:`, rootError);
+      return images;
+    }
 
-        if (isFolder) {
-          // Recursively search in subfolders
-          await searchFolderForImages(itemPath, codeLower, images);
-        } else {
-          // Check root-level files too
-          const nameLower = item.name.toLowerCase();
-          if (nameLower.includes(codeLower)) {
-            const storageUrl = getImageStorageUrl(itemPath);
-            if (storageUrl && !images.includes(storageUrl)) {
-              images.push(storageUrl);
-              console.log(`[generateImageUrls] ✓ Found in root: ${itemPath}`);
-            }
+    if (!rootContents || rootContents.length === 0) {
+      console.warn(`[generateImageUrls] Root folder is empty or inaccessible`);
+      return images;
+    }
+
+    console.log(`[generateImageUrls] Root contains ${rootContents.length} items`);
+
+    // Process all root-level items (both files and folders)
+    for (const item of rootContents) {
+      const itemPath = item.name;
+      const isFolder = !item.id; // Folders don't have an id
+
+      if (isFolder) {
+        console.log(`[generateImageUrls] → Folder: ${itemPath}`);
+        // Recursively search in subfolders
+        await searchFolderForImages(itemPath, codeLower, images);
+      } else {
+        // Check root-level files too
+        const nameLower = item.name.toLowerCase();
+        if (nameLower.includes(codeLower)) {
+          const storageUrl = getImageStorageUrl(itemPath);
+          if (storageUrl && !images.includes(storageUrl)) {
+            images.push(storageUrl);
+            console.log(`[generateImageUrls] ✓ Found in root: ${itemPath}`);
           }
         }
       }
     }
   } catch (err) {
-    console.debug(`[generateImageUrls] Error listing root:`, err);
+    console.error(`[generateImageUrls] Error listing root:`, err);
+    return images;
   }
 
   console.log(`[generateImageUrls] Total URLs found: ${images.length}`);
@@ -113,33 +125,44 @@ async function generateImageUrls(code: string): Promise<string[]> {
 async function searchFolderForImages(folderPath: string, codeLower: string, images: string[]): Promise<void> {
   try {
     console.log(`[generateImageUrls] Searching in folder: ${folderPath}`);
-    const { data: folderContents } = await supabase.storage
+    const { data: folderContents, error } = await supabase.storage
       .from("imagens")
       .list(folderPath, { limit: 500 });
 
-    if (folderContents && folderContents.length > 0) {
-      for (const item of folderContents) {
-        const itemPath = `${folderPath}/${item.name}`;
-        const isFolder = !item.id;
+    if (error) {
+      console.debug(`[generateImageUrls] Error listing folder "${folderPath}":`, error);
+      return;
+    }
 
-        if (isFolder) {
-          // Recursively search subfolders
-          await searchFolderForImages(itemPath, codeLower, images);
-        } else {
-          // Check if file name contains the product code (case-insensitive)
-          const nameLower = item.name.toLowerCase();
-          if (nameLower.includes(codeLower)) {
-            const storageUrl = getImageStorageUrl(itemPath);
-            if (storageUrl && !images.includes(storageUrl)) {
-              images.push(storageUrl);
-              console.log(`[generateImageUrls] ✓ Found: ${itemPath}`);
-            }
+    if (!folderContents || folderContents.length === 0) {
+      console.log(`[generateImageUrls] Folder is empty: ${folderPath}`);
+      return;
+    }
+
+    console.log(`[generateImageUrls] Found ${folderContents.length} items in ${folderPath}`);
+
+    for (const item of folderContents) {
+      const itemPath = `${folderPath}/${item.name}`;
+      const isFolder = !item.id;
+
+      if (isFolder) {
+        console.log(`[generateImageUrls]   → Subfolder: ${item.name}`);
+        // Recursively search subfolders
+        await searchFolderForImages(itemPath, codeLower, images);
+      } else {
+        // Check if file name contains the product code (case-insensitive)
+        const nameLower = item.name.toLowerCase();
+        if (nameLower.includes(codeLower)) {
+          const storageUrl = getImageStorageUrl(itemPath);
+          if (storageUrl && !images.includes(storageUrl)) {
+            images.push(storageUrl);
+            console.log(`[generateImageUrls] ✓ Found: ${itemPath}`);
           }
         }
       }
     }
   } catch (err) {
-    console.debug(`[generateImageUrls] Error listing folder "${folderPath}":`, err);
+    console.error(`[generateImageUrls] Error searching folder "${folderPath}":`, err);
   }
 }
 
