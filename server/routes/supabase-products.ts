@@ -52,8 +52,8 @@ export const getProducts: RequestHandler = async (req, res) => {
     const products: ProductResponse[] = (data || []).map((item: any) => ({
       code: item.code,
       description: item.description,
-      price: item.resalePrice || item.priceResale || 0,
-      priceWithIPI: item.resalePriceWithIPI || item.priceResaleWithIPI || 0,
+      price: item.price_resale || item.priceResale || item.resalePrice || 0,
+      priceWithIPI: item.price_resale_with_ipi || item.priceResaleWithIPI || item.resalePriceWithIPI || 0,
     }));
 
     console.log("[getProducts] Mapped products:", products.length);
@@ -114,8 +114,8 @@ export const searchProducts: RequestHandler = async (req, res) => {
     const products: ProductResponse[] = (data || []).map((item: any) => ({
       code: item.code,
       description: item.description,
-      price: item.priceResale || 0,
-      priceWithIPI: item.priceResaleWithIPI || 0,
+      price: item.price_resale || item.priceResale || 0,
+      priceWithIPI: item.price_resale_with_ipi || item.priceResaleWithIPI || 0,
     }));
 
     res.json({
@@ -171,8 +171,8 @@ export const getProductByCode: RequestHandler = async (req, res) => {
     const product: ProductResponse = {
       code: data.code,
       description: data.description,
-      price: data.priceResale || 0,
-      priceWithIPI: data.priceResaleWithIPI || 0,
+      price: data.price_resale || data.priceResale || 0,
+      priceWithIPI: data.price_resale_with_ipi || data.priceResaleWithIPI || 0,
     };
 
     res.json({
@@ -217,25 +217,17 @@ export const importProducts: RequestHandler = async (req, res) => {
       });
     }
 
-    // Validate and transform products
-    const validProducts = products
-      .filter((p: any) => {
-        return (
-          p.code &&
-          typeof p.code === "string" &&
-          p.description &&
-          typeof p.description === "string" &&
-          typeof p.price === "number" &&
-          typeof p.priceWithIPI === "number"
-        );
-      })
-      .map((p: any) => ({
-        code: p.code.trim(),
-        description: p.description.trim(),
-        marca: p.code.trim(), // "Fabricante" field becomes the code
-        priceResale: p.price,
-        priceResaleWithIPI: p.priceWithIPI,
-      }));
+    // Validate products
+    const validProducts = products.filter((p: any) => {
+      return (
+        p.code &&
+        typeof p.code === "string" &&
+        p.description &&
+        typeof p.description === "string" &&
+        typeof p.price === "number" &&
+        typeof p.priceWithIPI === "number"
+      );
+    });
 
     if (validProducts.length === 0) {
       return res.status(400).json({
@@ -258,16 +250,38 @@ export const importProducts: RequestHandler = async (req, res) => {
         .in("code", codes);
     }
 
+    // Transform products with flexible column mapping
+    const transformedProducts = uniqueProducts.map((p: any) => {
+      const baseObj: any = {
+        code: p.code.trim(),
+        description: p.description.trim(),
+        marca: p.code.trim(),
+      };
+
+      // Try multiple column name combinations
+      // First try with underscores (snake_case)
+      baseObj.price_resale = p.price;
+      baseObj.price_resale_with_ipi = p.priceWithIPI;
+
+      // Also include camelCase as fallback
+      baseObj.priceResale = p.price;
+      baseObj.priceResaleWithIPI = p.priceWithIPI;
+
+      return baseObj;
+    });
+
+    console.log("[importProducts] First product to insert:", JSON.stringify(transformedProducts[0], null, 2));
+
     // Insert products to Supabase
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from("products")
-      .insert(uniqueProducts);
+      .insert(transformedProducts);
 
     if (error) {
       console.error("Error importing products to Supabase:", error);
       return res.status(500).json({
         success: false,
-        error: "Failed to import products to database",
+        error: error.message || "Failed to import products to database",
       });
     }
 
@@ -280,7 +294,7 @@ export const importProducts: RequestHandler = async (req, res) => {
     console.error("Error importing products:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to import products",
+      error: error instanceof Error ? error.message : "Failed to import products",
     });
   }
 };
