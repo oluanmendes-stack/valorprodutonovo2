@@ -29,13 +29,13 @@ export function useProducts() {
           (p: any) => ({
             code: p.code,
             description: p.description,
-            price: p.priceResale || p.finalPrice || 0,
-            priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || 0,
+            price: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+            priceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
             manufacturer: p.code.split("-")[0] || "Geral",
             distributorPrice: p.priceDistributor || p.price_distributor || 0,
             distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
-            finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
-            finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
+            finalPrice: p.priceFinal || p.price_final || 0,
+            finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
           })
         );
         setProducts(productsWithManufacturer);
@@ -67,13 +67,13 @@ export function useProducts() {
         .map((p: any) => ({
           code: p.code,
           description: p.description,
-          price: p.priceResale || p.finalPrice || 0,
-          priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || 0,
+          price: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+          priceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
           distributorPrice: p.priceDistributor || p.price_distributor || 0,
           distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
-          finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
-          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
+          finalPrice: p.priceFinal || p.price_final || 0,
+          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
         }));
     } catch (error) {
       console.error("Error searching products:", error);
@@ -90,13 +90,13 @@ export function useProducts() {
         return {
           code: p.code,
           description: p.description,
-          price: p.priceResale || p.finalPrice || p.price_final || 0,
-          priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || p.price_final_with_ipi || 0,
+          price: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+          priceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
           distributorPrice: p.priceDistributor || p.price_distributor || 0,
           distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
-          finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
-          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
+          finalPrice: p.priceFinal || p.price_final || 0,
+          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
         };
       }
       return null;
@@ -117,13 +117,13 @@ export function useProducts() {
         (p: any) => ({
           code: p.code,
           description: p.description,
-          price: p.priceResale || p.finalPrice || 0,
-          priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || 0,
+          price: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+          priceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
           distributorPrice: p.priceDistributor || p.price_distributor || 0,
           distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
-          finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
-          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
+          finalPrice: p.priceFinal || p.price_final || 0,
+          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || 0,
         })
       );
       setProducts(productsWithManufacturer);
