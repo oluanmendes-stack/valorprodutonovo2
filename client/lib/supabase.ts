@@ -17,8 +17,16 @@ export interface Product {
   code: string;
   description: string;
   marca: string;
-  priceResale: number;
-  priceResaleWithIPI: number;
+  priceResale?: number;
+  priceResaleWithIPI?: number;
+  priceDistributor?: number;
+  price_distributor?: number;
+  priceDistributorWithIPI?: number;
+  price_distributor_with_ipi?: number;
+  priceFinal?: number;
+  price_final?: number;
+  priceFinalWithIPI?: number;
+  price_final_with_ipi?: number;
   catalog_path?: string | null;
   created_at: string;
 }

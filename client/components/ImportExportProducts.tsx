@@ -7,8 +7,12 @@ import { toast } from "sonner";
 interface Product {
   code: string;
   description: string;
-  price: number;
-  priceWithIPI: number;
+  distributorPrice?: number;
+  distributorPriceWithIPI?: number;
+  finalPrice?: number;
+  finalPriceWithIPI?: number;
+  price?: number;
+  priceWithIPI?: number;
 }
 
 interface ImportExportProductsProps {
@@ -33,15 +37,24 @@ export default function ImportExportProducts({
 
     try {
       // Create CSV header
-      const headers = ["Fabricante", "Descrição", "Preço revenda", "revenda c/ IPI"];
+      const headers = [
+        "Fabricante",
+        "Descrição",
+        "Preço Distribuidor s/ IPI",
+        "Preço Distribuidor c/ IPI",
+        "Preço Unit. Final s/ IPI",
+        "Preço Final c/ IPI",
+      ];
       const csvContent = [
         headers.join(";"),
         ...products.map((p) =>
           [
             p.code,
             p.description,
-            p.price.toString().replace(".", ","),
-            p.priceWithIPI.toString().replace(".", ","),
+            (p.distributorPrice || 0).toString().replace(".", ","),
+            (p.distributorPriceWithIPI || 0).toString().replace(".", ","),
+            (p.finalPrice || 0).toString().replace(".", ","),
+            (p.finalPriceWithIPI || 0).toString().replace(".", ","),
           ].join(";")
         ),
       ].join("\n");
@@ -83,20 +96,29 @@ export default function ImportExportProducts({
       const productsToImport: Product[] = [];
       for (let i = 1; i < lines.length; i++) {
         const parts = lines[i].split(";");
-        if (parts.length >= 4) {
+        if (parts.length >= 6) {
           const code = parts[0].trim();
           const description = parts[1].trim();
-          // Accept both "Preço revenda" and "Preço Distribuidor c/ IPI"
-          const price = parseFloat(parts[2].trim().replace(",", "."));
-          // Accept both "revenda c/ IPI" and "Preço Final c/ IPI"
-          const priceWithIPI = parseFloat(parts[3].trim().replace(",", "."));
+          const distributorPrice = parseFloat(parts[2].trim().replace(",", "."));
+          const distributorPriceWithIPI = parseFloat(parts[3].trim().replace(",", "."));
+          const finalPrice = parseFloat(parts[4].trim().replace(",", "."));
+          const finalPriceWithIPI = parseFloat(parts[5].trim().replace(",", "."));
 
-          if (code && description && !isNaN(price) && !isNaN(priceWithIPI)) {
+          if (
+            code &&
+            description &&
+            !isNaN(distributorPrice) &&
+            !isNaN(distributorPriceWithIPI) &&
+            !isNaN(finalPrice) &&
+            !isNaN(finalPriceWithIPI)
+          ) {
             productsToImport.push({
               code,
               description,
-              price,
-              priceWithIPI,
+              distributorPrice,
+              distributorPriceWithIPI,
+              finalPrice,
+              finalPriceWithIPI,
             });
           }
         }
@@ -237,9 +259,9 @@ export default function ImportExportProducts({
 
         <div className="text-xs text-muted-foreground mt-2 p-3 bg-muted rounded-lg">
           <p className="font-semibold mb-2">Formato CSV esperado:</p>
-          <p>Fabricante;Descrição;Preço revenda;revenda c/ IPI</p>
+          <p>Fabricante;Descrição;Preço Distribuidor s/ IPI;Preço Distribuidor c/ IPI;Preço Unit. Final s/ IPI;Preço Final c/ IPI</p>
           <p className="mt-2">Exemplo:</p>
-          <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.511,72;2.790,80</p>
+          <p>5L500;BATERIA DE LITIO NAO RECARREGAVEL;2.288,58;2.511,72;2.542,87;2.790,80</p>
         </div>
       </div>
     </Card>

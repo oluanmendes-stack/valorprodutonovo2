@@ -258,14 +258,23 @@ export const importProducts: RequestHandler = async (req, res) => {
         marca: p.code.trim(),
       };
 
-      // Try multiple column name combinations
-      // First try with underscores (snake_case)
-      baseObj.price_resale = p.price;
-      baseObj.price_resale_with_ipi = p.priceWithIPI;
+      // Map all price columns
+      baseObj.price_distributor = p.distributorPrice;
+      baseObj.price_distributor_with_ipi = p.distributorPriceWithIPI;
+      baseObj.price_final = p.finalPrice;
+      baseObj.price_final_with_ipi = p.finalPriceWithIPI;
 
-      // Also include camelCase as fallback
-      baseObj.priceResale = p.price;
-      baseObj.priceResaleWithIPI = p.priceWithIPI;
+      // Also include camelCase versions as fallback
+      baseObj.priceDistributor = p.distributorPrice;
+      baseObj.priceDistributorWithIPI = p.distributorPriceWithIPI;
+      baseObj.priceFinal = p.finalPrice;
+      baseObj.priceFinalWithIPI = p.finalPriceWithIPI;
+
+      // For backwards compatibility with resale price
+      baseObj.price_resale = p.finalPrice;
+      baseObj.price_resale_with_ipi = p.finalPriceWithIPI;
+      baseObj.priceResale = p.finalPrice;
+      baseObj.priceResaleWithIPI = p.finalPriceWithIPI;
 
       return baseObj;
     });
