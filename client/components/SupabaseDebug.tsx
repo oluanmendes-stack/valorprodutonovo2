@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import StorageDebugger from "./StorageDebugger";
 
 interface DebugInfo {
   supabaseUrl: string | undefined;
@@ -161,6 +162,11 @@ export default function SupabaseDebug() {
         <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded text-blue-900 dark:text-blue-200 text-xs">
           <strong>Próximo passo:</strong> Se URL e Key estão vermelhos, atualize o .env. Se estão verdes mas há erro na conexão, as tabelas podem não existir no banco.
         </div>
+      </div>
+
+      {/* Storage Explorer */}
+      <div className="mt-6 pt-6 border-t border-yellow-200 dark:border-yellow-800">
+        <StorageDebugger />
       </div>
     </Card>
   );

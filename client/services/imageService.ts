@@ -63,6 +63,8 @@ async function generateImageUrls(code: string): Promise<string[]> {
   const codeLower = code.toLowerCase().trim();
   const codeUpper = code.toUpperCase();
 
+  console.log(`[generateImageUrls] Starting search for code: "${code}" (lower: "${codeLower}", upper: "${codeUpper}")`);
+
   // Base patterns in different cases
   const basePatterns = [
     code,           // Exact case
@@ -130,13 +132,14 @@ async function generateImageUrls(code: string): Promise<string[]> {
 
     if (medLinketContents && medLinketContents.length > 0) {
       console.log(`[generateImageUrls] Found ${medLinketContents.length} items in MED-LINKET`);
-      // Add folders found in MED-LINKET
+      // Add folders found in MED-LINKET (in Supabase, item.id is null for folders)
       for (const item of medLinketContents) {
-        if (item.id) { // It's a folder/directory
+        if (!item.id) { // It's a folder/directory (id is null/undefined for folders)
           additionalFolders.push(`MED-LINKET/${item.name}`);
-          console.debug(`[generateImageUrls] Added subfolder: MED-LINKET/${item.name}`);
+          console.log(`[generateImageUrls] ✓ Added subfolder: MED-LINKET/${item.name}`);
         }
       }
+      console.log(`[generateImageUrls] Total additional folders from MED-LINKET: ${additionalFolders.length}`);
     }
   } catch (err) {
     console.debug(`[generateImageUrls] Could not list MED-LINKET subdirectories:`, err);
@@ -252,6 +255,16 @@ async function generateImageUrls(code: string): Promise<string[]> {
       console.log(`[generateImageUrls] Deep search found ${deepSearchResults.length} images`);
     } catch (err) {
       console.debug(`[generateImageUrls] Deep search failed:`, err);
+    }
+  }
+
+  // Last resort: Try brute force URLs for common paths
+  if (images.length === 0) {
+    console.log(`[generateImageUrls] No images found, attempting brute force URLs...`);
+    const bruteForceUrls = await tryBruteForceUrls(code, codeLower, codeUpper);
+    images.push(...bruteForceUrls);
+    if (bruteForceUrls.length > 0) {
+      console.log(`[generateImageUrls] Brute force found ${bruteForceUrls.length} images`);
     }
   }
 
@@ -388,9 +401,12 @@ async function searchAllSubfolders(code: string, codeLower: string, codeUpper: s
 
       if (!contents) continue;
 
-      // Look for files in this folder
+      // Look for files and folders in this folder
       for (const item of contents) {
-        if (!item.id) { // It's a file, not a folder
+        // In Supabase Storage: item.id is null/undefined for folders, has value for files
+        const isFolder = !item.id;
+
+        if (!isFolder) { // It's a file
           const itemName = item.name.toLowerCase();
           if (searchTerms.some(term => itemName.includes(term.toLowerCase()))) {
             const imagePath = mainFolder ? `${mainFolder}/${item.name}` : item.name;
@@ -403,36 +419,111 @@ async function searchAllSubfolders(code: string, codeLower: string, codeUpper: s
         } else {
           // It's a subfolder, try to search inside it
           const subfolderPath = mainFolder ? `${mainFolder}/${item.name}` : item.name;
-          console.log(`[searchAllSubfolders] Searching in subfolder: ${subfolderPath}`);
+          console.log(`[searchAllSubfolders] Searching in subfolder: "${subfolderPath}"`);
 
           try {
             const { data: subcontents } = await supabase.storage
               .from("imagens")
               .list(subfolderPath, { limit: 500 });
 
-            if (subcontents) {
+            if (subcontents && subcontents.length > 0) {
+              console.log(`[searchAllSubfolders] Found ${subcontents.length} items in subfolder "${subfolderPath}"`);
+
               for (const subitem of subcontents) {
-                if (!subitem.id) { // It's a file
+                // Only process files, not nested folders
+                const isSubFolder = !subitem.id;
+                if (!isSubFolder) { // It's a file
                   const itemName = subitem.name.toLowerCase();
                   if (searchTerms.some(term => itemName.includes(term.toLowerCase()))) {
                     const imagePath = `${subfolderPath}/${subitem.name}`;
                     const storageUrl = getImageStorageUrl(imagePath);
                     if (storageUrl && !images.includes(storageUrl)) {
                       images.push(storageUrl);
-                      console.log(`[searchAllSubfolders] Found image in subfolder: ${imagePath}`);
+                      console.log(`[searchAllSubfolders] ✓ Found image in subfolder: ${imagePath}`);
                     }
                   }
                 }
               }
+            } else {
+              console.debug(`[searchAllSubfolders] Subfolder "${subfolderPath}" is empty`);
             }
           } catch (err) {
-            console.debug(`[searchAllSubfolders] Could not list subfolder ${subfolderPath}`);
+            console.debug(`[searchAllSubfolders] Could not list subfolder "${subfolderPath}":`, err);
           }
         }
       }
     } catch (err) {
       console.debug(`[searchAllSubfolders] Error listing folder "${mainFolder}":`, err);
     }
+  }
+
+  return images;
+}
+
+/**
+ * Brute force function that tries common URL patterns
+ * Used as a last resort when API search fails
+ */
+async function tryBruteForceUrls(code: string, codeLower: string, codeUpper: string): Promise<string[]> {
+  const images: string[] = [];
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
+  if (!SUPABASE_URL) return images;
+
+  // Common image extensions to try
+  const extensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG', 'webp', 'WEBP'];
+
+  // Known folder patterns from MED-LINKET
+  const commonFolders = [
+    'MED-LINKET',
+    'MED-LINKET/ELETRODOS',
+    'MED-LINKET/ELETRODO',
+    'MED-LINKET/ELETRODO DESFIBRILA O',
+    'MED-LINKET/ELETRODO DESFIBRILACAO',
+    'MED-LINKET/ELETRODO DESFIBRILADORA',
+    'MED-LINKET/ELETRODO DESFIBRILADORA COMPATIVEL',
+    'TECNOPRINT',
+    'PHYSIO CONTROL',
+    'MEDMAX',
+    'GABMED',
+    'CONTEC',
+    '',  // Root
+  ];
+
+  console.log(`[tryBruteForceUrls] Attempting ${extensions.length * commonFolders.length} URL combinations...`);
+
+  const codeVariations = [code, codeLower, codeUpper];
+
+  for (const folder of commonFolders) {
+    for (const codeVar of codeVariations) {
+      for (const ext of extensions) {
+        const filename = `${codeVar}.${ext}`;
+        const fullPath = folder ? `${folder}/${filename}` : filename;
+        const encodedPath = fullPath
+          .split('/')
+          .map(part => encodeURIComponent(part))
+          .join('/');
+        const url = `${SUPABASE_URL}/storage/v1/object/public/imagens/${encodedPath}`;
+
+        // Test if this URL is valid by doing a HEAD request
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok) {
+            console.log(`[tryBruteForceUrls] ✓ Found valid URL: ${fullPath}`);
+            images.push(url);
+            break; // Found one for this code, move to next variation
+          }
+        } catch (err) {
+          // Silently ignore fetch errors (CORS, network, etc.)
+        }
+      }
+    }
+  }
+
+  if (images.length > 0) {
+    console.log(`[tryBruteForceUrls] Found ${images.length} images via brute force`);
+  } else {
+    console.log(`[tryBruteForceUrls] No images found via brute force`);
   }
 
   return images;
