@@ -8,6 +8,10 @@ export interface Product {
   price: number;
   priceWithIPI: number;
   manufacturer?: string;
+  distributorPrice?: number;
+  distributorPriceWithIPI?: number;
+  finalPrice?: number;
+  finalPriceWithIPI?: number;
 }
 
 export function useProducts() {
@@ -22,12 +26,16 @@ export function useProducts() {
         const supabaseProducts = await fetchAllProducts();
 
         const productsWithManufacturer = supabaseProducts.map(
-          (p: SupabaseProduct) => ({
+          (p: any) => ({
             code: p.code,
             description: p.description,
-            price: p.priceResale,
-            priceWithIPI: p.priceResaleWithIPI,
+            price: p.priceResale || p.finalPrice || 0,
+            priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || 0,
             manufacturer: p.code.split("-")[0] || "Geral",
+            distributorPrice: p.priceDistributor || p.price_distributor || 0,
+            distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+            finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
+            finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
           })
         );
         setProducts(productsWithManufacturer);
@@ -56,12 +64,16 @@ export function useProducts() {
           p.code.toLowerCase().includes(queryLower) ||
           p.description.toLowerCase().includes(queryLower)
         )
-        .map((p: SupabaseProduct) => ({
+        .map((p: any) => ({
           code: p.code,
           description: p.description,
-          price: p.priceResale,
-          priceWithIPI: p.priceResaleWithIPI,
+          price: p.priceResale || p.finalPrice || 0,
+          priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
+          distributorPrice: p.priceDistributor || p.price_distributor || 0,
+          distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+          finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
+          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
         }));
     } catch (error) {
       console.error("Error searching products:", error);
@@ -74,12 +86,17 @@ export function useProducts() {
       const product = await searchProductByCode(code);
 
       if (product) {
+        const p = product as any;
         return {
-          code: product.code,
-          description: product.description,
-          price: product.priceResale,
-          priceWithIPI: product.priceResaleWithIPI,
-          manufacturer: product.code.split("-")[0] || "Geral",
+          code: p.code,
+          description: p.description,
+          price: p.priceResale || p.finalPrice || p.price_final || 0,
+          priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || p.price_final_with_ipi || 0,
+          manufacturer: p.code.split("-")[0] || "Geral",
+          distributorPrice: p.priceDistributor || p.price_distributor || 0,
+          distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+          finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
+          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
         };
       }
       return null;
@@ -97,12 +114,16 @@ export function useProducts() {
       const supabaseProducts = await fetchAllProducts();
 
       const productsWithManufacturer = supabaseProducts.map(
-        (p: SupabaseProduct) => ({
+        (p: any) => ({
           code: p.code,
           description: p.description,
-          price: p.priceResale,
-          priceWithIPI: p.priceResaleWithIPI,
+          price: p.priceResale || p.finalPrice || 0,
+          priceWithIPI: p.priceResaleWithIPI || p.finalPriceWithIPI || 0,
           manufacturer: p.code.split("-")[0] || "Geral",
+          distributorPrice: p.priceDistributor || p.price_distributor || 0,
+          distributorPriceWithIPI: p.priceDistributorWithIPI || p.price_distributor_with_ipi || 0,
+          finalPrice: p.priceFinal || p.price_final || p.priceResale || 0,
+          finalPriceWithIPI: p.priceFinalWithIPI || p.price_final_with_ipi || p.priceResaleWithIPI || 0,
         })
       );
       setProducts(productsWithManufacturer);
