@@ -17,8 +17,123 @@ export interface ProductImage {
 // Cache for checked image paths to avoid repeated failed requests
 const imageCache = new Map<string, string[]>();
 
+// Cache for folder structure
+interface FolderStructure {
+  [path: string]: {
+    folders: string[];
+    files: { name: string; path: string }[];
+  };
+}
+const folderStructureCache: FolderStructure = {};
+let folderStructureCacheReady = false;
+let folderStructureCacheLoading = false;
+const folderCachePromise = new Promise<void>((resolve) => {
+  folderStructureCache._resolveReady = resolve;
+});
+
+/**
+ * Pre-load the folder structure of the imagens bucket
+ * This should be called once at app startup to cache all folders and files
+ */
+export async function preCacheFolderStructure(): Promise<void> {
+  if (folderStructureCacheReady || folderStructureCacheLoading) {
+    console.log("[imageService] Folder structure cache already loaded or loading");
+    return;
+  }
+
+  if (!shouldUseSupabaseStorage()) {
+    console.log("[imageService] Supabase Storage not enabled, skipping pre-cache");
+    folderStructureCacheReady = true;
+    folderStructureCache._resolveReady?.();
+    return;
+  }
+
+  folderStructureCacheLoading = true;
+  console.log("[imageService] 🚀 Starting to pre-cache folder structure...");
+  console.log("[imageService] Bucket: imagens");
+
+  try {
+    const startTime = performance.now();
+    await buildFolderStructure("");
+    const endTime = performance.now();
+
+    folderStructureCacheReady = true;
+
+    // Calculate total items, filtering out non-folder entries
+    let totalItems = 0;
+    let totalFolders = 0;
+    for (const key in folderStructureCache) {
+      if (key === "_resolveReady") continue;
+      const folder = folderStructureCache[key];
+      if (folder && folder.files && folder.folders) {
+        totalItems += folder.files.length;
+        totalFolders += folder.folders.length;
+      }
+    }
+
+    console.log(`[imageService] ✅ Folder structure pre-cached in ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`[imageService] Total folders: ${totalFolders}, Total files: ${totalItems}`);
+    console.log("[imageService] Full cache structure:", folderStructureCache);
+  } catch (err) {
+    console.error("[imageService] ❌ Error pre-caching folder structure:", err);
+    folderStructureCacheReady = true;
+  } finally {
+    folderStructureCacheLoading = false;
+    folderStructureCache._resolveReady?.();
+  }
+}
+
+/**
+ * Recursively build the folder structure and cache it
+ */
+async function buildFolderStructure(folderPath: string): Promise<void> {
+  try {
+    const displayPath = folderPath || "root";
+    console.log(`[imageService] Building structure for: ${displayPath}`);
+
+    const { data, error } = await supabase.storage
+      .from("imagens")
+      .list(folderPath || "", { limit: 500 });
+
+    if (error) {
+      console.error(`[imageService] ✗ Error listing ${displayPath}:`, error);
+      return;
+    }
+
+    if (!data) {
+      console.warn(`[imageService] ⚠ No data returned for ${displayPath}`);
+      return;
+    }
+
+    console.log(`[imageService] → ${displayPath} contains ${data.length} items:`, data);
+
+    const folders: string[] = [];
+    const files: { name: string; path: string }[] = [];
+
+    for (const item of data) {
+      const itemPath = folderPath ? `${folderPath}/${item.name}` : item.name;
+      const isFolder = !item.id;
+
+      if (isFolder) {
+        folders.push(item.name);
+        console.log(`[imageService]   📁 ${item.name}/ (folder)`);
+        // Recursively build structure for subfolders
+        await buildFolderStructure(itemPath);
+      } else {
+        files.push({ name: item.name, path: itemPath });
+        console.log(`[imageService]   📄 ${item.name}`);
+      }
+    }
+
+    folderStructureCache[folderPath || "root"] = { folders, files };
+  } catch (err) {
+    console.error(`[imageService] ✗ Error building folder structure:`, err);
+  }
+}
+
 /**
  * Find images for a product code
+ * Uses pre-cached folder structure if available, otherwise falls back to dynamic search
  * Directly searches Supabase Storage with all naming pattern variations
  * No server API dependency - pure client-side
  */
@@ -56,86 +171,154 @@ export async function findProductImages(code: string): Promise<string[]> {
 
 /**
  * Generate all possible image URLs for a product code
- * Searches all subfolders within MED-LINKET dynamically
+ * Uses pre-cached folder structure if available for faster search
+ * Falls back to dynamic search if cache is not ready
+ * Looks for files containing the complete product code (case-insensitive)
  */
 async function generateImageUrls(code: string): Promise<string[]> {
   const images: string[] = [];
   const codeLower = code.toLowerCase().trim();
-  const codeUpper = code.toUpperCase();
 
   console.log(`[generateImageUrls] Starting search for code: "${code}"`);
 
-  // File extensions to try (only common ones)
-  const extensions = ['.jpg', '.jpeg', '.png'];
-
   if (!shouldUseSupabaseStorage()) {
-    // Fallback for local development - try common extensions
-    for (const ext of extensions) {
-      const filename = `${code}${ext}`;
-      const storageUrl = getImageStorageUrl(`MED-LINKET/${filename}`);
-      if (storageUrl) images.push(storageUrl);
-    }
+    // Fallback for local development
     return images;
   }
 
-  // Get all MED-LINKET subfolders dynamically
-  const allSubfolders: string[] = [];
-  try {
-    console.log(`[generateImageUrls] Listing all subfolders in MED-LINKET...`);
-    const { data: medLinketContents } = await supabase.storage
-      .from("imagens")
-      .list("MED-LINKET", { limit: 500 });
-
-    if (medLinketContents && medLinketContents.length > 0) {
-      // Collect all subfolders (where item.id is null/undefined)
-      for (const item of medLinketContents) {
-        if (!item.id) { // It's a folder
-          allSubfolders.push(`MED-LINKET/${item.name}`);
-        }
-      }
-      console.log(`[generateImageUrls] Found ${allSubfolders.length} subfolders in MED-LINKET: ${allSubfolders.join(', ')}`);
-    }
-  } catch (err) {
-    console.debug(`[generateImageUrls] Error listing MED-LINKET:`, err);
+  // Wait for cache to be ready if it's still loading
+  if (folderStructureCacheLoading) {
+    console.log(`[generateImageUrls] Waiting for folder cache to be ready...`);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to avoid busy loop
   }
 
-  // If no subfolders found dynamically, at least try root MED-LINKET
-  if (allSubfolders.length === 0) {
-    console.log(`[generateImageUrls] No subfolders found, will try MED-LINKET root`);
-    allSubfolders.push("MED-LINKET");
-  }
+  // Use cached folder structure if available
+  if (folderStructureCacheReady && Object.keys(folderStructureCache).length > 0) {
+    console.log(`[generateImageUrls] Using cached folder structure`);
 
-  // Search in each subfolder for the product code
-  const codeVariations = [code, codeLower, codeUpper];
-
-  for (const folder of allSubfolders) {
-    try {
-      console.log(`[generateImageUrls] Searching in folder: ${folder}`);
-      const { data: folderContents } = await supabase.storage
-        .from("imagens")
-        .list(folder, { limit: 500 });
-
-      if (folderContents && folderContents.length > 0) {
-        for (const file of folderContents) {
+    // Search through all cached files
+    const searchCachedFiles = (structure: FolderStructure) => {
+      for (const folderPath in structure) {
+        if (folderPath === "_resolveReady") continue;
+        const { files } = structure[folderPath];
+        for (const file of files) {
           const nameLower = file.name.toLowerCase();
-          // Check if file name contains any variation of the code
-          if (codeVariations.some(codeVar => nameLower.includes(codeVar.toLowerCase()))) {
-            const imagePath = `${folder}/${file.name}`;
-            const storageUrl = getImageStorageUrl(imagePath);
+          if (nameLower.includes(codeLower)) {
+            const storageUrl = getImageStorageUrl(file.path);
             if (storageUrl && !images.includes(storageUrl)) {
               images.push(storageUrl);
-              console.log(`[generateImageUrls] ✓ Found: ${imagePath}`);
+              console.log(`[generateImageUrls] ✓ Found: ${file.path}`);
             }
           }
         }
       }
-    } catch (err) {
-      console.debug(`[generateImageUrls] Error listing folder "${folder}":`, err);
+    };
+
+    searchCachedFiles(folderStructureCache);
+
+    if (images.length > 0) {
+      console.log(`[generateImageUrls] Total URLs found from cache: ${images.length}`);
+      return images;
     }
+  }
+
+  // Fallback: dynamic search if cache not ready or empty
+  console.log(`[generateImageUrls] Cache not ready or no results, falling back to dynamic search`);
+
+  // List all items in the root of imagens bucket
+  try {
+    console.log(`[generateImageUrls] Listing root of imagens bucket...`);
+    const { data: rootContents, error: rootError } = await supabase.storage
+      .from("imagens")
+      .list("", { limit: 500 });
+
+    if (rootError) {
+      console.error(`[generateImageUrls] Error listing root:`, rootError);
+      return images;
+    }
+
+    if (!rootContents || rootContents.length === 0) {
+      console.warn(`[generateImageUrls] Root folder is empty or inaccessible`);
+      return images;
+    }
+
+    console.log(`[generateImageUrls] Root contains ${rootContents.length} items`);
+
+    // Process all root-level items (both files and folders)
+    for (const item of rootContents) {
+      const itemPath = item.name;
+      const isFolder = !item.id; // Folders don't have an id
+
+      if (isFolder) {
+        console.log(`[generateImageUrls] → Folder: ${itemPath}`);
+        // Recursively search in subfolders
+        await searchFolderForImages(itemPath, codeLower, images);
+      } else {
+        // Check root-level files too
+        const nameLower = item.name.toLowerCase();
+        if (nameLower.includes(codeLower)) {
+          const storageUrl = getImageStorageUrl(itemPath);
+          if (storageUrl && !images.includes(storageUrl)) {
+            images.push(storageUrl);
+            console.log(`[generateImageUrls] ✓ Found in root: ${itemPath}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[generateImageUrls] Error listing root:`, err);
+    return images;
   }
 
   console.log(`[generateImageUrls] Total URLs found: ${images.length}`);
   return images;
+}
+
+/**
+ * Recursively search a folder for images containing the product code
+ */
+async function searchFolderForImages(folderPath: string, codeLower: string, images: string[]): Promise<void> {
+  try {
+    console.log(`[generateImageUrls] Searching in folder: ${folderPath}`);
+    const { data: folderContents, error } = await supabase.storage
+      .from("imagens")
+      .list(folderPath, { limit: 500 });
+
+    if (error) {
+      console.debug(`[generateImageUrls] Error listing folder "${folderPath}":`, error);
+      return;
+    }
+
+    if (!folderContents || folderContents.length === 0) {
+      console.log(`[generateImageUrls] Folder is empty: ${folderPath}`);
+      return;
+    }
+
+    console.log(`[generateImageUrls] Found ${folderContents.length} items in ${folderPath}`);
+
+    for (const item of folderContents) {
+      const itemPath = `${folderPath}/${item.name}`;
+      const isFolder = !item.id;
+
+      if (isFolder) {
+        console.log(`[generateImageUrls]   → Subfolder: ${item.name}`);
+        // Recursively search subfolders
+        await searchFolderForImages(itemPath, codeLower, images);
+      } else {
+        // Check if file name contains the product code (case-insensitive)
+        const nameLower = item.name.toLowerCase();
+        if (nameLower.includes(codeLower)) {
+          const storageUrl = getImageStorageUrl(itemPath);
+          if (storageUrl && !images.includes(storageUrl)) {
+            images.push(storageUrl);
+            console.log(`[generateImageUrls] ✓ Found: ${itemPath}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[generateImageUrls] Error searching folder "${folderPath}":`, err);
+  }
 }
 
 
