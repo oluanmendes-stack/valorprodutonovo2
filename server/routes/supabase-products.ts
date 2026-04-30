@@ -52,8 +52,8 @@ export const getProducts: RequestHandler = async (req, res) => {
     const products: ProductResponse[] = (data || []).map((item: any) => ({
       code: item.code,
       description: item.description,
-      price: item.resalePrice || item.priceResale || 0,
-      priceWithIPI: item.resalePriceWithIPI || item.priceResaleWithIPI || 0,
+      price: item.price_resale || item.priceResale || item.resalePrice || 0,
+      priceWithIPI: item.price_resale_with_ipi || item.priceResaleWithIPI || item.resalePriceWithIPI || 0,
     }));
 
     console.log("[getProducts] Mapped products:", products.length);
@@ -114,8 +114,8 @@ export const searchProducts: RequestHandler = async (req, res) => {
     const products: ProductResponse[] = (data || []).map((item: any) => ({
       code: item.code,
       description: item.description,
-      price: item.priceResale || 0,
-      priceWithIPI: item.priceResaleWithIPI || 0,
+      price: item.price_resale || item.priceResale || 0,
+      priceWithIPI: item.price_resale_with_ipi || item.priceResaleWithIPI || 0,
     }));
 
     res.json({
@@ -171,8 +171,8 @@ export const getProductByCode: RequestHandler = async (req, res) => {
     const product: ProductResponse = {
       code: data.code,
       description: data.description,
-      price: data.priceResale || 0,
-      priceWithIPI: data.priceResaleWithIPI || 0,
+      price: data.price_resale || data.priceResale || 0,
+      priceWithIPI: data.price_resale_with_ipi || data.priceResaleWithIPI || 0,
     };
 
     res.json({
@@ -233,8 +233,9 @@ export const importProducts: RequestHandler = async (req, res) => {
         code: p.code.trim(),
         description: p.description.trim(),
         marca: p.code.trim(), // "Fabricante" field becomes the code
-        priceResale: p.price,
-        priceResaleWithIPI: p.priceWithIPI,
+        price_distributor: 0, // Default value
+        price_resale: p.price,
+        price_resale_with_ipi: p.priceWithIPI,
       }));
 
     if (validProducts.length === 0) {
