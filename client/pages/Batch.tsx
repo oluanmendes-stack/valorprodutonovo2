@@ -629,13 +629,11 @@ export default function Batch() {
           </Card>
         )}
 
-        {/* Compatibility Miniature */}
-        <div className="grid grid-cols-1 gap-6">
-          <CompatibilityMini />
-        </div>
-
         {/* Batch Report Preview */}
         {reportData.length > 0 && <BatchReport reports={reportData} />}
+
+        {/* Compatibility Miniature */}
+        <CompatibilityMini />
       </div>
 
       {/* Image Viewer Modal */}
