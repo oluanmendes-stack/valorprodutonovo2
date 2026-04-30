@@ -58,6 +58,8 @@ export default function Index() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     toast.success(`Produto selecionado: ${product.code}`);
+    // Automatically load images when product is selected
+    // Note: This will be displayed when user clicks the image viewer button
   };
 
   const handleCopyCode = () => {
@@ -372,7 +374,9 @@ export default function Index() {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => setImageViewerOpen(true)}
+                    onClick={() => {
+                      setImageViewerOpen(true);
+                    }}
                     title="Ver fotos do produto"
                   >
                     <Eye className="w-4 h-4" />

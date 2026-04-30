@@ -18,6 +18,8 @@ interface BatchProductProps {
   priceWithIPI: number;
   totalPrice: number;
   totalPriceWithIPI: number;
+  distributorPrice?: number;
+  finalPrice?: number;
 }
 
 export default function BatchProduct({
@@ -29,6 +31,8 @@ export default function BatchProduct({
   priceWithIPI,
   totalPrice,
   totalPriceWithIPI,
+  distributorPrice = 0,
+  finalPrice = 0,
 }: BatchProductProps) {
   const [expandedDescriptor, setExpandedDescriptor] = useState(false);
 
@@ -45,11 +49,15 @@ export default function BatchProduct({
           <p className="font-600 text-sm">{marca}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground font-600">Preço Unit. Distribuidor c/ IPI</p>
+          <p className="text-xs text-muted-foreground font-600">Distribuidor sem IPI</p>
+          <p className="font-600 text-sm">R$ {formatPrice(distributorPrice ?? 0)}</p>
+          <p className="text-xs text-muted-foreground font-600 mt-2">Distribuidor c/ IPI</p>
           <p className="font-600">R$ {formatPrice(price ?? 0)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground font-600">Preço Unit. Final c/ IPI</p>
+          <p className="text-xs text-muted-foreground font-600">Final sem IPI</p>
+          <p className="font-600 text-sm">R$ {formatPrice(finalPrice ?? 0)}</p>
+          <p className="text-xs text-muted-foreground font-600 mt-2">Final c/ IPI</p>
           <p className="font-600">R$ {formatPrice(priceWithIPI ?? 0)}</p>
         </div>
       </div>

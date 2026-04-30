@@ -223,7 +223,9 @@ async function generateBatchReportClientSide(
         );
 
         if (product) {
+          const distributorPrice = typeof product.priceDistributor === 'number' ? product.priceDistributor : 0;
           const price = typeof product.priceDistributorWithIPI === 'number' ? product.priceDistributorWithIPI : 0;
+          const finalPrice = typeof product.priceFinal === 'number' ? product.priceFinal : 0;
           const priceWithIPI = typeof product.priceFinalWithIPI === 'number' ? product.priceFinalWithIPI : 0;
           const totalPrice = price * batch.quantity;
           const totalPriceWithIPI = priceWithIPI * batch.quantity;
@@ -248,6 +250,8 @@ async function generateBatchReportClientSide(
             priceWithIPI,
             totalPrice,
             totalPriceWithIPI,
+            distributorPrice,
+            finalPrice,
           });
 
           batchTotalPrice += totalPrice;
