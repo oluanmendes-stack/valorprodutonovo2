@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSupabaseCompatibility } from "@/hooks/useSupabaseCompatibility";
-import { Search, Trash2, Edit, Plus, ChevronDown, X, Check } from "lucide-react";
+import { Search, Trash2, Edit, Plus, ChevronDown, X, Check, Filter } from "lucide-react";
 import { toast } from "sonner";
 
 interface CompatibilityRecord {
@@ -27,6 +27,12 @@ export default function CompatibilityMini() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingRecord, setEditingRecord] = useState<CompatibilityRecord | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    parametro: "",
+    fabricante: "",
+    modelo: "",
+  });
 
   const [newRecord, setNewRecord] = useState<CompatibilityRecord>({
     id: "",
@@ -46,18 +52,43 @@ export default function CompatibilityMini() {
   }, []);
 
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return records;
+    let result = records;
 
-    const term = searchTerm.toLowerCase();
-    return records.filter(
-      (record) =>
-        record.equipamento.toLowerCase().includes(term) ||
-        record.fabricante.toLowerCase().includes(term) ||
-        record.modelo.toLowerCase().includes(term) ||
-        record.acessorio.toLowerCase().includes(term) ||
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (record) =>
+          record.equipamento.toLowerCase().includes(term) ||
+          record.fabricante.toLowerCase().includes(term) ||
+          record.modelo.toLowerCase().includes(term) ||
+          record.acessorio.toLowerCase().includes(term) ||
+          record.parametro.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply specific field filters
+    if (filters.parametro) {
+      const term = filters.parametro.toLowerCase();
+      result = result.filter((record) =>
         record.parametro.toLowerCase().includes(term)
-    );
-  }, [records, searchTerm]);
+      );
+    }
+    if (filters.fabricante) {
+      const term = filters.fabricante.toLowerCase();
+      result = result.filter((record) =>
+        record.fabricante.toLowerCase().includes(term)
+      );
+    }
+    if (filters.modelo) {
+      const term = filters.modelo.toLowerCase();
+      result = result.filter((record) =>
+        record.modelo.toLowerCase().includes(term)
+      );
+    }
+
+    return result;
+  }, [records, searchTerm, filters]);
 
   const handleDeleteRecord = async (id: string) => {
     if (confirm("Tem certeza que deseja remover este registro?")) {
@@ -188,6 +219,92 @@ export default function CompatibilityMini() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
+        </div>
+
+        {/* Advanced Filters */}
+        <div className="bg-muted/50 border border-border rounded-lg p-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <h4 className="font-500 text-sm">Filtros</h4>
+            </div>
+            <div className="flex gap-2">
+              {(filters.parametro || filters.fabricante || filters.modelo) && (
+                <Button
+                  onClick={() =>
+                    setFilters({
+                      parametro: "",
+                      fabricante: "",
+                      modelo: "",
+                    })
+                  }
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7"
+                >
+                  Limpar
+                </Button>
+              )}
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                size="sm"
+                variant="ghost"
+                className="text-xs h-7"
+              >
+                {showFilters ? "Fechar" : "Abrir"}
+              </Button>
+            </div>
+          </div>
+
+          {showFilters && (
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label htmlFor="filter-parametro" className="text-xs font-500 mb-1 block">
+                  Parâmetro
+                </Label>
+                <Input
+                  id="filter-parametro"
+                  type="text"
+                  placeholder="Filtrar..."
+                  value={filters.parametro}
+                  onChange={(e) =>
+                    setFilters({ ...filters, parametro: e.target.value })
+                  }
+                  className="text-sm h-8"
+                />
+              </div>
+              <div>
+                <Label htmlFor="filter-fabricante" className="text-xs font-500 mb-1 block">
+                  Fabricante
+                </Label>
+                <Input
+                  id="filter-fabricante"
+                  type="text"
+                  placeholder="Filtrar..."
+                  value={filters.fabricante}
+                  onChange={(e) =>
+                    setFilters({ ...filters, fabricante: e.target.value })
+                  }
+                  className="text-sm h-8"
+                />
+              </div>
+              <div>
+                <Label htmlFor="filter-modelo" className="text-xs font-500 mb-1 block">
+                  Modelo
+                </Label>
+                <Input
+                  id="filter-modelo"
+                  type="text"
+                  placeholder="Filtrar..."
+                  value={filters.modelo}
+                  onChange={(e) =>
+                    setFilters({ ...filters, modelo: e.target.value })
+                  }
+                  className="text-sm h-8"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Add New Record Form */}
