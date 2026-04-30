@@ -17,8 +17,6 @@ export interface Product {
   code: string;
   description: string;
   marca: string;
-  priceResale?: number;
-  priceResaleWithIPI?: number;
   priceDistributor?: number;
   price_distributor?: number;
   priceDistributorWithIPI?: number;
@@ -27,6 +25,8 @@ export interface Product {
   price_final?: number;
   priceFinalWithIPI?: number;
   price_final_with_ipi?: number;
+  priceResale?: number;
+  priceResaleWithIPI?: number;
   catalog_path?: string | null;
   created_at: string;
 }
@@ -96,8 +96,13 @@ export async function fetchAllProducts(): Promise<Product[]> {
         code: item.code,
         description: item.description,
         marca: item.marca || "",
-        priceResale: item.priceResale || item.resalePrice || 0,
-        priceResaleWithIPI: item.priceResaleWithIPI || item.resalePriceWithIPI || 0,
+        priceDistributor: item.price_distributor || 0,
+        priceDistributorWithIPI: item.price_distributor_with_ipi || 0,
+        priceFinal: item.price_final || 0,
+        priceFinalWithIPI: item.price_final_with_ipi || 0,
+        // Keep these for backwards compatibility
+        priceResale: item.price_final || 0,
+        priceResaleWithIPI: item.price_final_with_ipi || 0,
         catalog_path: item.catalog_path || null,
         created_at: item.created_at,
       }));
@@ -218,8 +223,10 @@ async function generateBatchReportClientSide(
         );
 
         if (product) {
-          const price = typeof product.priceResale === 'number' ? product.priceResale : 0;
-          const priceWithIPI = typeof product.priceResaleWithIPI === 'number' ? product.priceResaleWithIPI : 0;
+          const distributorPrice = typeof product.priceDistributor === 'number' ? product.priceDistributor : 0;
+          const price = typeof product.priceDistributorWithIPI === 'number' ? product.priceDistributorWithIPI : 0;
+          const finalPrice = typeof product.priceFinal === 'number' ? product.priceFinal : 0;
+          const priceWithIPI = typeof product.priceFinalWithIPI === 'number' ? product.priceFinalWithIPI : 0;
           const totalPrice = price * batch.quantity;
           const totalPriceWithIPI = priceWithIPI * batch.quantity;
 
@@ -243,6 +250,8 @@ async function generateBatchReportClientSide(
             priceWithIPI,
             totalPrice,
             totalPriceWithIPI,
+            distributorPrice,
+            finalPrice,
           });
 
           batchTotalPrice += totalPrice;

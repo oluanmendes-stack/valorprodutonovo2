@@ -58,6 +58,8 @@ export default function Index() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     toast.success(`Produto selecionado: ${product.code}`);
+    // Automatically load images when product is selected
+    // Note: This will be displayed when user clicks the image viewer button
   };
 
   const handleCopyCode = () => {
@@ -313,10 +315,29 @@ export default function Index() {
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">
+                        Preço Unit. Distribuidor sem IPI
+                      </p>
+                      <p className="text-lg font-600 text-foreground">
+                        R$ {formatPrice(selectedProduct.distributorPrice || 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">
                         Preço Unit. Distribuidor c/ IPI
                       </p>
                       <p className="text-2xl font-700 text-primary">
                         R$ {formatPrice(selectedProduct.price)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Preço Unit. Final sem IPI
+                      </p>
+                      <p className="text-lg font-600 text-foreground">
+                        R$ {formatPrice(selectedProduct.finalPrice || 0)}
                       </p>
                     </div>
                     <div>
@@ -329,11 +350,11 @@ export default function Index() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-2 gap-4 pt-4">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">X3</p>
                       <p className="text-xl font-700 text-accent">
-                        R$ {formatPrice(selectedProduct.price * 3)}
+                        R$ {formatPrice(selectedProduct.distributorPrice * 3 || 0)}
                       </p>
                     </div>
                     <div>
@@ -341,7 +362,7 @@ export default function Index() {
                         X3 c/ IPI
                       </p>
                       <p className="text-xl font-700 text-accent">
-                        R$ {formatPrice(selectedProduct.priceWithIPI * 3)}
+                        R$ {formatPrice(selectedProduct.price * 3)}
                       </p>
                     </div>
                   </div>
@@ -353,7 +374,9 @@ export default function Index() {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => setImageViewerOpen(true)}
+                    onClick={() => {
+                      setImageViewerOpen(true);
+                    }}
                     title="Ver fotos do produto"
                   >
                     <Eye className="w-4 h-4" />
