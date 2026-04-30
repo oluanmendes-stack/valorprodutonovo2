@@ -217,25 +217,17 @@ export const importProducts: RequestHandler = async (req, res) => {
       });
     }
 
-    // Validate and transform products
-    const validProducts = products
-      .filter((p: any) => {
-        return (
-          p.code &&
-          typeof p.code === "string" &&
-          p.description &&
-          typeof p.description === "string" &&
-          typeof p.price === "number" &&
-          typeof p.priceWithIPI === "number"
-        );
-      })
-      .map((p: any) => ({
-        code: p.code.trim(),
-        description: p.description.trim(),
-        marca: p.code.trim(), // "Fabricante" field becomes the code
-        price_resale: p.price,
-        price_resale_with_ipi: p.priceWithIPI,
-      }));
+    // Validate products
+    const validProducts = products.filter((p: any) => {
+      return (
+        p.code &&
+        typeof p.code === "string" &&
+        p.description &&
+        typeof p.description === "string" &&
+        typeof p.price === "number" &&
+        typeof p.priceWithIPI === "number"
+      );
+    });
 
     if (validProducts.length === 0) {
       return res.status(400).json({
@@ -258,16 +250,38 @@ export const importProducts: RequestHandler = async (req, res) => {
         .in("code", codes);
     }
 
+    // Transform products with flexible column mapping
+    const transformedProducts = uniqueProducts.map((p: any) => {
+      const baseObj: any = {
+        code: p.code.trim(),
+        description: p.description.trim(),
+        marca: p.code.trim(),
+      };
+
+      // Try multiple column name combinations
+      // First try with underscores (snake_case)
+      baseObj.price_resale = p.price;
+      baseObj.price_resale_with_ipi = p.priceWithIPI;
+
+      // Also include camelCase as fallback
+      baseObj.priceResale = p.price;
+      baseObj.priceResaleWithIPI = p.priceWithIPI;
+
+      return baseObj;
+    });
+
+    console.log("[importProducts] First product to insert:", JSON.stringify(transformedProducts[0], null, 2));
+
     // Insert products to Supabase
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from("products")
-      .insert(uniqueProducts);
+      .insert(transformedProducts);
 
     if (error) {
       console.error("Error importing products to Supabase:", error);
       return res.status(500).json({
         success: false,
-        error: "Failed to import products to database",
+        error: error.message || "Failed to import products to database",
       });
     }
 
@@ -280,7 +294,7 @@ export const importProducts: RequestHandler = async (req, res) => {
     console.error("Error importing products:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to import products",
+      error: error instanceof Error ? error.message : "Failed to import products",
     });
   }
 };
