@@ -121,7 +121,14 @@ async function generateImageUrls(code: string): Promise<string[]> {
 
   // Additional product category folders within MED-LINKET and other brands
   // that might contain product images
-  const additionalFolders: string[] = [];
+  // Start with known folders that are commonly used
+  const additionalFolders: string[] = [
+    // Known MED-LINKET subfolders (hard-coded common patterns)
+    "MED-LINKET/ELETRODO DESFIBRILA O",
+    "MED-LINKET/ELETRODOS",
+    "MED-LINKET/ELETRODO",
+    "MED-LINKET/DESFIBRILADORES",
+  ];
 
   // For MED-LINKET, we'll try to list subdirectories dynamically
   try {
@@ -135,15 +142,18 @@ async function generateImageUrls(code: string): Promise<string[]> {
       // Add folders found in MED-LINKET (in Supabase, item.id is null for folders)
       for (const item of medLinketContents) {
         if (!item.id) { // It's a folder/directory (id is null/undefined for folders)
-          additionalFolders.push(`MED-LINKET/${item.name}`);
-          console.log(`[generateImageUrls] ✓ Added subfolder: MED-LINKET/${item.name}`);
+          const folderPath = `MED-LINKET/${item.name}`;
+          if (!additionalFolders.includes(folderPath)) {
+            additionalFolders.push(folderPath);
+            console.log(`[generateImageUrls] ✓ Added subfolder: ${folderPath}`);
+          }
         }
       }
       console.log(`[generateImageUrls] Total additional folders from MED-LINKET: ${additionalFolders.length}`);
     }
   } catch (err) {
     console.debug(`[generateImageUrls] Could not list MED-LINKET subdirectories:`, err);
-    // Silently fail, we'll still try the main brands
+    console.log(`[generateImageUrls] Using pre-configured MED-LINKET folders as fallback`);
   }
 
   // If not using Supabase storage (e.g. local API mode), fallback to brute force
@@ -473,15 +483,15 @@ async function tryBruteForceUrls(code: string, codeLower: string, codeUpper: str
   // Common image extensions to try
   const extensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG', 'webp', 'WEBP'];
 
-  // Known folder patterns from MED-LINKET
+  // Known folder patterns from MED-LINKET (prioritize known ones first)
   const commonFolders = [
-    'MED-LINKET',
+    // MED-LINKET subfolders (in priority order)
+    'MED-LINKET/ELETRODO DESFIBRILA O',  // Most specific - this is the exact folder for the image
     'MED-LINKET/ELETRODOS',
     'MED-LINKET/ELETRODO',
-    'MED-LINKET/ELETRODO DESFIBRILA O',
-    'MED-LINKET/ELETRODO DESFIBRILACAO',
-    'MED-LINKET/ELETRODO DESFIBRILADORA',
-    'MED-LINKET/ELETRODO DESFIBRILADORA COMPATIVEL',
+    'MED-LINKET/DESFIBRILADORES',
+    'MED-LINKET',
+    // Other brands
     'TECNOPRINT',
     'PHYSIO CONTROL',
     'MEDMAX',
