@@ -56,7 +56,7 @@ export async function findProductImages(code: string): Promise<string[]> {
 
 /**
  * Generate all possible image URLs for a product code
- * Optimized for MED-LINKET structure - only searches in MED-LINKET bucket
+ * Searches all subfolders within MED-LINKET dynamically
  */
 async function generateImageUrls(code: string): Promise<string[]> {
   const images: string[] = [];
@@ -68,28 +68,18 @@ async function generateImageUrls(code: string): Promise<string[]> {
   // File extensions to try (only common ones)
   const extensions = ['.jpg', '.jpeg', '.png'];
 
-  // MED-LINKET subfolders in priority order
-  const medLinketFolders: string[] = [
-    "MED-LINKET/ELETRODO DESFIBRILACAO",
-    "MED-LINKET/ELETRODOS",
-    "MED-LINKET/ELETRODO",
-    "MED-LINKET/DESFIBRILADORES",
-  ];
-
   if (!shouldUseSupabaseStorage()) {
-    // Fallback for local development
-    for (const folder of medLinketFolders) {
-      for (const ext of extensions) {
-        const filename = `${code}${ext}`;
-        const pathWithBrand = `${folder}/${filename}`;
-        const storageUrl = getImageStorageUrl(pathWithBrand);
-        if (storageUrl) images.push(storageUrl);
-      }
+    // Fallback for local development - try common extensions
+    for (const ext of extensions) {
+      const filename = `${code}${ext}`;
+      const storageUrl = getImageStorageUrl(`MED-LINKET/${filename}`);
+      if (storageUrl) images.push(storageUrl);
     }
     return images;
   }
 
   // Get all MED-LINKET subfolders dynamically
+  const allSubfolders: string[] = [];
   try {
     console.log(`[generateImageUrls] Listing all subfolders in MED-LINKET...`);
     const { data: medLinketContents } = await supabase.storage
@@ -97,57 +87,54 @@ async function generateImageUrls(code: string): Promise<string[]> {
       .list("MED-LINKET", { limit: 500 });
 
     if (medLinketContents && medLinketContents.length > 0) {
-      // Get folder list
-      const dynamicFolders: string[] = [];
+      // Collect all subfolders (where item.id is null/undefined)
       for (const item of medLinketContents) {
         if (!item.id) { // It's a folder
-          dynamicFolders.push(`MED-LINKET/${item.name}`);
+          allSubfolders.push(`MED-LINKET/${item.name}`);
         }
       }
-      console.log(`[generateImageUrls] Found ${dynamicFolders.length} subfolders in MED-LINKET`);
-
-      // Search in each subfolder
-      for (const folder of dynamicFolders) {
-        console.log(`[generateImageUrls] Searching in folder: ${folder}`);
-        const { data: folderContents } = await supabase.storage
-          .from("imagens")
-          .list(folder, { limit: 200 });
-
-        if (folderContents && folderContents.length > 0) {
-          for (const file of folderContents) {
-            const nameLower = file.name.toLowerCase();
-            if (nameLower.includes(codeLower)) {
-              const imagePath = `${folder}/${file.name}`;
-              const storageUrl = getImageStorageUrl(imagePath);
-              if (storageUrl && !images.includes(storageUrl)) {
-                images.push(storageUrl);
-                console.log(`[generateImageUrls] ✓ Found: ${file.name}`);
-              }
-            }
-          }
-        }
-      }
+      console.log(`[generateImageUrls] Found ${allSubfolders.length} subfolders in MED-LINKET: ${allSubfolders.join(', ')}`);
     }
   } catch (err) {
     console.debug(`[generateImageUrls] Error listing MED-LINKET:`, err);
   }
 
-  // If not found, try direct paths in hardcoded folders
-  if (images.length === 0) {
-    console.log(`[generateImageUrls] Not found via listing, trying direct paths...`);
-    for (const folder of medLinketFolders) {
-      for (const codeVar of [code, codeLower, codeUpper]) {
-        for (const ext of extensions) {
-          const filename = `${codeVar}${ext}`;
-          const imagePath = `${folder}/${filename}`;
-          const storageUrl = getImageStorageUrl(imagePath);
-          images.push(storageUrl);
+  // If no subfolders found dynamically, at least try root MED-LINKET
+  if (allSubfolders.length === 0) {
+    console.log(`[generateImageUrls] No subfolders found, will try MED-LINKET root`);
+    allSubfolders.push("MED-LINKET");
+  }
+
+  // Search in each subfolder for the product code
+  const codeVariations = [code, codeLower, codeUpper];
+
+  for (const folder of allSubfolders) {
+    try {
+      console.log(`[generateImageUrls] Searching in folder: ${folder}`);
+      const { data: folderContents } = await supabase.storage
+        .from("imagens")
+        .list(folder, { limit: 500 });
+
+      if (folderContents && folderContents.length > 0) {
+        for (const file of folderContents) {
+          const nameLower = file.name.toLowerCase();
+          // Check if file name contains any variation of the code
+          if (codeVariations.some(codeVar => nameLower.includes(codeVar.toLowerCase()))) {
+            const imagePath = `${folder}/${file.name}`;
+            const storageUrl = getImageStorageUrl(imagePath);
+            if (storageUrl && !images.includes(storageUrl)) {
+              images.push(storageUrl);
+              console.log(`[generateImageUrls] ✓ Found: ${imagePath}`);
+            }
+          }
         }
       }
+    } catch (err) {
+      console.debug(`[generateImageUrls] Error listing folder "${folder}":`, err);
     }
   }
 
-  console.log(`[generateImageUrls] Total URLs generated: ${images.length}`);
+  console.log(`[generateImageUrls] Total URLs found: ${images.length}`);
   return images;
 }
 
