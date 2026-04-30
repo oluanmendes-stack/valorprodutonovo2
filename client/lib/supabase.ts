@@ -291,7 +291,7 @@ async function generateBatchReportClientSide(
  */
 export async function findCatalogFileDirect(code: string): Promise<string | null> {
   try {
-    const { data: files, error } = await supabase.storage.from("catalago").list('', {
+    const { data: files, error } = await supabase.storage.from("catalogo").list('', {
       limit: 1000,
     });
 
@@ -301,7 +301,7 @@ export async function findCatalogFileDirect(code: string): Promise<string | null
     }
 
     const searchCode = normalizeCode(code);
-    
+
     // Find a file that starts with the code or matches patterns
     const foundFile = files.find(file => {
       const fileName = normalizeCode(file.name);
@@ -316,7 +316,7 @@ export async function findCatalogFileDirect(code: string): Promise<string | null
 
     if (foundFile) {
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-      return `${SUPABASE_URL}/storage/v1/object/public/catalago/${encodeURIComponent(foundFile.name)}`;
+      return `${SUPABASE_URL}/storage/v1/object/public/catalogo/${encodeURIComponent(foundFile.name)}`;
     }
 
     return null;
