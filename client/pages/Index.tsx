@@ -120,6 +120,14 @@ export default function Index() {
     }
   };
 
+  const handleOpenImages = () => {
+    if (!selectedProduct) {
+      toast.error("Selecione um produto primeiro");
+      return;
+    }
+    setImageViewerOpen(true);
+  };
+
   const handleOpenCatalog = () => {
     if (!selectedProduct) {
       toast.error("Selecione um produto primeiro");
@@ -378,9 +386,7 @@ export default function Index() {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => {
-                      setImageViewerOpen(true);
-                    }}
+                    onClick={handleOpenImages}
                     title="Ver fotos do produto"
                   >
                     <Eye className="w-4 h-4" />
