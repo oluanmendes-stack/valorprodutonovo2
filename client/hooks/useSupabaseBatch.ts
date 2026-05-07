@@ -32,7 +32,7 @@ export function useSupabaseBatch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateReport = async (lotes: Lote[]): Promise<BatchReport[] | null> => {
+  const generateReport = async (lotes: Lote[], multiplier: number = 3): Promise<BatchReport[] | null> => {
     try {
       setLoading(true);
       setError(null);
@@ -43,7 +43,7 @@ export function useSupabaseBatch() {
         quantity: lote.quantity,
       }));
 
-      const result = await generateBatchReport(batchData);
+      const result = await generateBatchReport(batchData, multiplier);
 
       if (result && result.success) {
         if (result.notFoundCodes && result.notFoundCodes.length > 0) {
@@ -66,11 +66,11 @@ export function useSupabaseBatch() {
     }
   };
 
-  const exportPDF = async (lotes: Lote[]): Promise<void> => {
+  const exportPDF = async (lotes: Lote[], multiplier: number = 3): Promise<void> => {
     toast.info("Exportação de PDF não disponível na versão em produção");
   };
 
-  const exportExcel = async (lotes: Lote[]): Promise<void> => {
+  const exportExcel = async (lotes: Lote[], multiplier: number = 3): Promise<void> => {
     toast.info("Exportação de Excel não disponível na versão em produção");
   };
 

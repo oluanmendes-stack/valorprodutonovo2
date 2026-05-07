@@ -20,6 +20,7 @@ interface BatchProductProps {
   totalPriceWithIPI: number;
   distributorPrice?: number;
   finalPrice?: number;
+  priceMultiplied?: number;
 }
 
 export default function BatchProduct({
@@ -33,6 +34,7 @@ export default function BatchProduct({
   totalPriceWithIPI,
   distributorPrice = 0,
   finalPrice = 0,
+  priceMultiplied = 0,
 }: BatchProductProps) {
   const [expandedDescriptor, setExpandedDescriptor] = useState(false);
 
@@ -110,6 +112,14 @@ export default function BatchProduct({
           R$ {formatPrice(totalPriceWithIPI ?? 0)}
         </span>
       </div>
+      {priceMultiplied > 0 && (
+        <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/50">
+          <span className="text-sm font-600 text-accent">Preço Multiplicado (Unitário):</span>
+          <span className="font-bold text-lg text-accent">
+            R$ {formatPrice(priceMultiplied)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

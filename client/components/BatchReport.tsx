@@ -21,6 +21,7 @@ interface BatchProductData {
   totalPriceWithIPI: number;
   distributorPrice?: number;
   finalPrice?: number;
+  priceMultiplied?: number;
 }
 
 interface BatchReportData {
@@ -69,6 +70,7 @@ export default function BatchReport({ reports }: BatchReportProps) {
                 totalPriceWithIPI={product.totalPriceWithIPI}
                 distributorPrice={product.distributorPrice}
                 finalPrice={product.finalPrice}
+                priceMultiplied={product.priceMultiplied}
               />
             ))}
           </div>
