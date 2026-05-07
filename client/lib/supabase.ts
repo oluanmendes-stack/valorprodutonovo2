@@ -169,6 +169,7 @@ export async function generateBatchReport(
       totalPrice: number;
       totalPriceWithIPI: number;
       priceMultiplied?: number;
+      totalPriceMultiplied?: number;
     }>;
     batchTotalPrice: number;
     batchTotalPriceWithIPI: number;
@@ -200,6 +201,7 @@ async function generateBatchReportClientSide(
       totalPrice: number;
       totalPriceWithIPI: number;
       priceMultiplied?: number;
+      totalPriceMultiplied?: number;
     }>;
     batchTotalPrice: number;
     batchTotalPriceWithIPI: number;
@@ -234,6 +236,7 @@ async function generateBatchReportClientSide(
           const totalPrice = price * batch.quantity;
           const totalPriceWithIPI = priceWithIPI * batch.quantity;
           const priceMultiplied = priceWithIPI * multiplier;
+          const totalPriceMultiplied = totalPriceWithIPI * multiplier;
 
           // Load descriptor for the product
           let descriptor: string | null = null;
@@ -256,6 +259,7 @@ async function generateBatchReportClientSide(
             totalPrice,
             totalPriceWithIPI,
             priceMultiplied,
+            totalPriceMultiplied,
             distributorPrice,
             finalPrice,
           });

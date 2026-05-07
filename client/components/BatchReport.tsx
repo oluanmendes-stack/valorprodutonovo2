@@ -22,6 +22,7 @@ interface BatchProductData {
   distributorPrice?: number;
   finalPrice?: number;
   priceMultiplied?: number;
+  totalPriceMultiplied?: number;
 }
 
 interface BatchReportData {
