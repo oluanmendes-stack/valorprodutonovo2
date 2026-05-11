@@ -27,9 +27,12 @@ export default function CatalogViewer({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Auto-fetch catalog path when modal opens and no catalog path is provided
+  // Auto-fetch catalog path when modal opens
   useEffect(() => {
-    if (open && !catalogPath && productCode) {
+    if (open && productCode) {
+      // Reset and fetch fresh when modal opens
+      setCatalogPath(null);
+      setErrorMsg(null);
       fetchCatalogPath();
     }
   }, [open, productCode]);
