@@ -47,36 +47,55 @@ export async function findGoogleDriveImages(code: string): Promise<string[]> {
     }
 
     const folderData = await folderResponse.json();
+    let images: string[] = [];
 
-    if (!folderData.files || folderData.files.length === 0) {
-      console.warn(`[GoogleDrive] No folder found for product code: ${code}`);
-      imageCache.set(code, []);
-      return [];
-    }
+    if (folderData.files && folderData.files.length > 0) {
+      // Found a subfolder with the product code, search for images inside it
+      const productFolderId = folderData.files[0].id;
+      console.log(`[GoogleDrive] Found product folder: ${productFolderId}`);
 
-    const productFolderId = folderData.files[0].id;
-    console.log(`[GoogleDrive] Found product folder: ${productFolderId}`);
+      // Search for image files in the product folder
+      const imageQuery = `'${productFolderId}' in parents and (mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/gif' or mimeType='image/webp') and trashed=false`;
+      const imageResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`
+      );
 
-    // Now search for image files in the product folder
-    const imageQuery = `'${productFolderId}' in parents and (mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/gif' or mimeType='image/webp') and trashed=false`;
-    const imageResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`
-    );
+      if (!imageResponse.ok) {
+        throw new Error(`Google Drive API error: ${imageResponse.statusText}`);
+      }
 
-    if (!imageResponse.ok) {
-      throw new Error(`Google Drive API error: ${imageResponse.statusText}`);
-    }
+      const imageData = await imageResponse.json();
 
-    const imageData = await imageResponse.json();
-    const images: string[] = [];
+      if (imageData.files && imageData.files.length > 0) {
+        // Convert web view links to direct download links
+        for (const file of imageData.files) {
+          // Extract file ID from the web view link and create a direct export link
+          const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
+          images.push(directLink);
+          console.log(`[GoogleDrive] Found image in subfolder: ${file.name}`);
+        }
+      }
+    } else {
+      // No subfolder found, try searching for image files directly in parent folder with product code in filename
+      console.log(`[GoogleDrive] No subfolder found for "${code}", searching for images with product code in filename...`);
+      const imageQuery = `'${parentFolderId}' in parents and name contains '${code}' and (mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/gif' or mimeType='image/webp') and trashed=false`;
+      const imageResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`
+      );
 
-    if (imageData.files && imageData.files.length > 0) {
-      // Convert web view links to direct download links
-      for (const file of imageData.files) {
-        // Extract file ID from the web view link and create a direct export link
-        const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
-        images.push(directLink);
-        console.log(`[GoogleDrive] Found image: ${file.name}`);
+      if (!imageResponse.ok) {
+        throw new Error(`Google Drive API error: ${imageResponse.statusText}`);
+      }
+
+      const imageData = await imageResponse.json();
+
+      if (imageData.files && imageData.files.length > 0) {
+        // Convert web view links to direct download links
+        for (const file of imageData.files) {
+          const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
+          images.push(directLink);
+          console.log(`[GoogleDrive] Found image in parent folder: ${file.name}`);
+        }
       }
     }
 

@@ -143,14 +143,15 @@ async function buildFolderStructure(folderPath: string): Promise<void> {
 export async function findProductImages(code: string): Promise<string[]> {
   const source = getImageSource();
 
-  // Try Google Drive first if it's the preferred source and available
-  if (source === 'googledrive' && isGoogleDriveAvailable()) {
+  // Use Google Drive if it's the preferred source and available
+  if (source === 'googledrive') {
+    if (!isGoogleDriveAvailable()) {
+      console.warn(`[findProductImages] Google Drive selected but not configured (missing API key or folder ID)`);
+      return [];
+    }
     console.log(`[findProductImages] Using Google Drive as image source for: ${code}`);
     const googleDriveImages = await findGoogleDriveImages(code);
-    if (googleDriveImages.length > 0) {
-      return googleDriveImages;
-    }
-    console.log(`[findProductImages] No images found on Google Drive, falling back to Supabase`);
+    return googleDriveImages;
   }
 
   // Check cache first for Supabase
