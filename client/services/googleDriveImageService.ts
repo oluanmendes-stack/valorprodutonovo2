@@ -64,15 +64,17 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
 /**
  * Get all subfolders in a folder (with caching)
  */
-async function getSubfolders(folderId: string, parentName: string = ''): Promise<Array<{id: string, name: string}>> {
+async function getSubfolders(folderId: string, parentName: string = ''): Promise<{id: string, name: string}[]> {
   const cacheKey = `subfolders_${folderId}`;
   if (folderCache.has(cacheKey)) {
-    const cached = folderCache.get(cacheKey) || [];
-    console.log(`[GoogleDrive] 📦 Subpastas em cache de "${parentName}": ${cached.length} pasta(s)`);
-    return cached as Array<{id: string, name: string}>;
+    const cached = folderCache.get(cacheKey);
+    if (cached) {
+      console.log(`[GoogleDrive] 📦 Subpastas em cache de "${parentName}": ${(cached as any[]).length} pasta(s)`);
+      return cached as {id: string, name: string}[];
+    }
   }
 
-  const subfolders: Array<{id: string, name: string}> = [];
+  const subfolders: {id: string, name: string}[] = [];
   const folderQuery = `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
 
   try {
@@ -97,7 +99,7 @@ async function getSubfolders(folderId: string, parentName: string = ''): Promise
         console.log(`[GoogleDrive]   📁 ${folder.name}`);
       }
     } else {
-      console.log(`[GoogleDrive] 📭 Nenhuma subpasta encontrada`);
+      console.log(`[GoogleDrive] 📭 Nenhuma subpasta encontrada em "${parentName}"`);
     }
 
     folderCache.set(cacheKey, subfolders);
@@ -121,18 +123,29 @@ async function recursiveSearchImages(folderId: string, code: string, folderName:
     return images;
   }
 
+  console.log(`[GoogleDrive] ${indent}🔍 Procurando imagens em "${folderName}"...`);
+
   // Search for images in current folder
   const currentImages = await searchImagesInFolder(folderId, code, folderName);
   images.push(...currentImages);
 
+  if (currentImages.length > 0) {
+    console.log(`[GoogleDrive] ${indent}✅ Encontradas ${currentImages.length} imagem(ns) em "${folderName}"`);
+  }
+
   // Get subfolders and search recursively
+  console.log(`[GoogleDrive] ${indent}📂 Listando subpastas de "${folderName}"...`);
   const subfolders = await getSubfolders(folderId, folderName);
+
   if (subfolders.length > 0) {
-    console.log(`[GoogleDrive] ${indent}🔄 Buscando recursivamente em ${subfolders.length} subpasta(s)...`);
+    console.log(`[GoogleDrive] ${indent}🔄 Encontradas ${subfolders.length} subpasta(s). Buscando recursivamente...`);
     for (const subfolder of subfolders) {
+      console.log(`[GoogleDrive] ${indent}→ Entrando em subpasta: ${subfolder.name}`);
       const subImages = await recursiveSearchImages(subfolder.id, code, subfolder.name, depth + 1, maxDepth);
       images.push(...subImages);
     }
+  } else {
+    console.log(`[GoogleDrive] ${indent}📭 Nenhuma subpasta para descer em "${folderName}"`);
   }
 
   return images;
