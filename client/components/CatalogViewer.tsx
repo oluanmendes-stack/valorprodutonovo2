@@ -37,25 +37,34 @@ export default function CatalogViewer({
   const fetchCatalogPath = async () => {
     // Dynamically import to avoid circular dependencies if needed
     const { findCatalogFileDirect } = await import("@/lib/supabase");
-    
+    const { findGoogleDriveCatalog } = await import("@/services/googleDriveCatalogService");
+
     setLoading(true);
     setErrorMsg(null);
     try {
       console.log(`[CatalogViewer] Searching directly for: ${productCode}`);
-      const directPath = await findCatalogFileDirect(productCode);
+      let directPath = await findCatalogFileDirect(productCode);
 
       if (directPath) {
         console.log(`[CatalogViewer] ✓ Found direct path: ${directPath}`);
         setCatalogPath(directPath);
       } else {
-        console.warn(`[CatalogViewer] ✗ No catalog file found for: ${productCode}`);
-        setCatalogPath(null);
-        setErrorMsg("Arquivo não encontrado no storage (verifique se existe um .doc ou .pdf com o código do produto)");
+        console.log(`[CatalogViewer] ✗ Not found in Supabase, trying Google Drive...`);
+        const googleDrivePath = await findGoogleDriveCatalog(productCode);
+
+        if (googleDrivePath) {
+          console.log(`[CatalogViewer] ✓ Found in Google Drive: ${googleDrivePath}`);
+          setCatalogPath(googleDrivePath);
+        } else {
+          console.warn(`[CatalogViewer] ✗ No catalog file found for: ${productCode}`);
+          setCatalogPath(null);
+          setErrorMsg("Arquivo não encontrado no storage (verifique se existe um .doc ou .pdf com o código do produto)");
+        }
       }
     } catch (error) {
       console.error("[CatalogViewer] Error searching catalog:", error);
       setCatalogPath(null);
-      setErrorMsg(error instanceof Error ? error.message : "Erro ao acessar storage do Supabase");
+      setErrorMsg(error instanceof Error ? error.message : "Erro ao acessar storage");
     } finally {
       setLoading(false);
     }
@@ -68,13 +77,23 @@ export default function CatalogViewer({
     return url.includes("supabase.co") && url.includes("/storage/");
   };
 
+  /**
+   * Check if the catalog path is a Google Drive URL
+   */
+  const isGoogleDriveUrl = (url: string): boolean => {
+    return url.includes("drive.google.com");
+  };
+
   const handleOpenCatalog = async () => {
     if (!catalogPath) return;
 
     try {
       let shareUrl: string;
 
-      if (isSupabaseUrl(catalogPath)) {
+      if (isGoogleDriveUrl(catalogPath)) {
+        // For Google Drive URLs, open directly
+        shareUrl = catalogPath;
+      } else if (isSupabaseUrl(catalogPath)) {
         // For Supabase URLs, open directly
         shareUrl = catalogPath;
       } else {
@@ -94,7 +113,10 @@ export default function CatalogViewer({
     try {
       let url: string;
 
-      if (isSupabaseUrl(catalogPath)) {
+      if (isGoogleDriveUrl(catalogPath)) {
+        // For Google Drive URLs, download directly
+        url = catalogPath;
+      } else if (isSupabaseUrl(catalogPath)) {
         // For Supabase URLs, download directly
         url = catalogPath;
       } else {
@@ -124,7 +146,13 @@ export default function CatalogViewer({
   const handleCopyPath = () => {
     if (!catalogPath) return;
     navigator.clipboard.writeText(catalogPath);
-    toast.success(isSupabaseUrl(catalogPath) ? "URL do Supabase copiada!" : "Caminho do catálogo copiado!");
+    if (isGoogleDriveUrl(catalogPath)) {
+      toast.success("URL do Google Drive copiada!");
+    } else if (isSupabaseUrl(catalogPath)) {
+      toast.success("URL do Supabase copiada!");
+    } else {
+      toast.success("Caminho do catálogo copiado!");
+    }
   };
 
   const handleCopyShareLink = () => {
@@ -132,7 +160,10 @@ export default function CatalogViewer({
 
     let shareUrl: string;
 
-    if (isSupabaseUrl(catalogPath)) {
+    if (isGoogleDriveUrl(catalogPath)) {
+      // For Google Drive URLs, copy the URL directly (it's already public)
+      shareUrl = catalogPath;
+    } else if (isSupabaseUrl(catalogPath)) {
       // For Supabase URLs, copy the URL directly (it's already public)
       shareUrl = catalogPath;
     } else {
@@ -179,7 +210,7 @@ export default function CatalogViewer({
               {catalogPath.endsWith('.pdf') ? (
                 // PDF files - use Google Docs Viewer
                 <iframe
-                  src={`https://docs.google.com/gvjs?url=${encodeURIComponent(isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
+                  src={`https://docs.google.com/gvjs?url=${encodeURIComponent(isGoogleDriveUrl(catalogPath) || isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
                   className="w-full h-96 border-none"
                   title="Visualizador de Catálogo"
                   loading="lazy"
@@ -187,7 +218,7 @@ export default function CatalogViewer({
               ) : (
                 // Word documents (.doc, .docx) - use Microsoft Office Online Viewer
                 <iframe
-                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
+                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(isGoogleDriveUrl(catalogPath) || isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
                   className="w-full h-96 border-none"
                   title="Visualizador de Catálogo"
                   loading="lazy"

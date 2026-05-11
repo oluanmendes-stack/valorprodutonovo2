@@ -5,7 +5,7 @@ import ImportExportProducts from "@/components/ImportExportProducts";
 import ImageSourceConfig from "@/components/ImageSourceConfig";
 import { useProducts } from "@/hooks/useProducts";
 import { Card } from "@/components/ui/card";
-import { Settings, Database, Package, Image } from "lucide-react";
+import { Settings, Database, Package, Image, FileText } from "lucide-react";
 
 export default function SettingsPage() {
   const { products, refetch } = useProducts();
@@ -84,6 +84,20 @@ export default function SettingsPage() {
               </div>
             </div>
           </Card>
+
+          <Card className="p-6 border-blue-200 dark:border-blue-800">
+            <div className="flex items-start gap-3">
+              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+              <div>
+                <h3 className="font-semibold mb-2">Catálogos no Google Drive</h3>
+                <p className="text-sm text-muted-foreground">
+                  Armazene catálogos de produtos no Google Drive. A aplicação
+                  procura automaticamente por arquivos PDF ou Word que correspondem
+                  ao código do produto na pasta configurada.
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Environment Variables Info */}
@@ -101,11 +115,13 @@ export default function SettingsPage() {
               <li>VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY</li>
               <li>SUPABASE_URL</li>
               <li>SUPABASE_KEY</li>
+              <li>VITE_GOOGLE_DRIVE_API_KEY</li>
+              <li>VITE_GOOGLE_DRIVE_FOLDER_ID</li>
             </ul>
             <p className="mt-3">
               Acesse o painel de sua plataforma de hospedagem (Netlify/Vercel),
               vá para "Environment Variables" e adicione essas variáveis com
-              seus valores do Supabase.
+              seus valores correspondentes.
             </p>
           </div>
         </Card>
