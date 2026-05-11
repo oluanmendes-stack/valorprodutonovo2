@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import SupabaseConfig from "@/components/SupabaseConfig";
 import ImportExportProducts from "@/components/ImportExportProducts";
 import ImageSourceConfig from "@/components/ImageSourceConfig";
+import CatalogSourceConfig from "@/components/CatalogSourceConfig";
 import { useProducts } from "@/hooks/useProducts";
 import { Card } from "@/components/ui/card";
 import { Settings, Database, Package, Image, FileText } from "lucide-react";
@@ -53,6 +54,11 @@ export default function SettingsPage() {
           {/* Image Source Configuration */}
           <div className="lg:col-span-1">
             <ImageSourceConfig />
+          </div>
+
+          {/* Catalog Source Configuration */}
+          <div className="lg:col-span-1">
+            <CatalogSourceConfig />
           </div>
         </div>
 

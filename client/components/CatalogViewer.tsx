@@ -38,27 +38,53 @@ export default function CatalogViewer({
     // Dynamically import to avoid circular dependencies if needed
     const { findCatalogFileDirect } = await import("@/lib/supabase");
     const { findGoogleDriveCatalog } = await import("@/services/googleDriveCatalogService");
+    const { getCatalogSource } = await import("@/lib/catalogSourceConfig");
 
     setLoading(true);
     setErrorMsg(null);
     try {
-      console.log(`[CatalogViewer] Searching directly for: ${productCode}`);
-      let directPath = await findCatalogFileDirect(productCode);
+      const source = getCatalogSource();
+      console.log(`[CatalogViewer] Searching with source: ${source}`);
 
-      if (directPath) {
-        console.log(`[CatalogViewer] ✓ Found direct path: ${directPath}`);
-        setCatalogPath(directPath);
-      } else {
-        console.log(`[CatalogViewer] ✗ Not found in Supabase, trying Google Drive...`);
-        const googleDrivePath = await findGoogleDriveCatalog(productCode);
+      let directPath: string | null = null;
+      let googleDrivePath: string | null = null;
 
+      // Try preferred source first
+      if (source === 'googledrive') {
+        console.log(`[CatalogViewer] Searching in Google Drive first...`);
+        googleDrivePath = await findGoogleDriveCatalog(productCode);
         if (googleDrivePath) {
           console.log(`[CatalogViewer] ✓ Found in Google Drive: ${googleDrivePath}`);
           setCatalogPath(googleDrivePath);
         } else {
-          console.warn(`[CatalogViewer] ✗ No catalog file found for: ${productCode}`);
-          setCatalogPath(null);
-          setErrorMsg("Arquivo não encontrado no storage (verifique se existe um .doc ou .pdf com o código do produto)");
+          console.log(`[CatalogViewer] ✗ Not found in Google Drive, trying Supabase...`);
+          directPath = await findCatalogFileDirect(productCode);
+          if (directPath) {
+            console.log(`[CatalogViewer] ✓ Found in Supabase: ${directPath}`);
+            setCatalogPath(directPath);
+          } else {
+            console.warn(`[CatalogViewer] ✗ No catalog file found for: ${productCode}`);
+            setCatalogPath(null);
+            setErrorMsg("Arquivo não encontrado no storage (verifique se existe um .doc ou .pdf com o código do produto)");
+          }
+        }
+      } else {
+        console.log(`[CatalogViewer] Searching in Supabase first...`);
+        directPath = await findCatalogFileDirect(productCode);
+        if (directPath) {
+          console.log(`[CatalogViewer] ✓ Found in Supabase: ${directPath}`);
+          setCatalogPath(directPath);
+        } else {
+          console.log(`[CatalogViewer] ✗ Not found in Supabase, trying Google Drive...`);
+          googleDrivePath = await findGoogleDriveCatalog(productCode);
+          if (googleDrivePath) {
+            console.log(`[CatalogViewer] ✓ Found in Google Drive: ${googleDrivePath}`);
+            setCatalogPath(googleDrivePath);
+          } else {
+            console.warn(`[CatalogViewer] ✗ No catalog file found for: ${productCode}`);
+            setCatalogPath(null);
+            setErrorMsg("Arquivo não encontrado no storage (verifique se existe um .doc ou .pdf com o código do produto)");
+          }
         }
       }
     } catch (error) {
