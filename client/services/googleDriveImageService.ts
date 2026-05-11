@@ -23,17 +23,22 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
 
   try {
     console.log(`[GoogleDrive] 🔍 Procurando em pasta: ${folderName || folderId}`);
+    console.log(`[GoogleDrive]    Query: ${imageQuery}`);
 
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`
-    );
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`;
+    console.log(`[GoogleDrive]    URL: ${url.substring(0, 100)}...`);
+
+    const response = await fetch(url);
 
     if (!response.ok) {
-      console.warn(`[GoogleDrive] ❌ Erro na API ao buscar pasta ${folderName || folderId}: ${response.statusText}`);
+      console.warn(`[GoogleDrive] ❌ Erro na API ao buscar pasta ${folderName || folderId}: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`[GoogleDrive] ❌ Resposta de erro:`, errorText);
       return [];
     }
 
     const data = await response.json();
+    console.log(`[GoogleDrive]    Resposta da API:`, data);
 
     if (data.files && data.files.length > 0) {
       console.log(`[GoogleDrive] 📁 Encontrados ${data.files.length} arquivo(s) de imagem nesta pasta:`);
@@ -52,7 +57,7 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
         }
       }
     } else {
-      console.log(`[GoogleDrive] 📭 Nenhuma imagem encontrada nesta pasta`);
+      console.log(`[GoogleDrive] 📭 Nenhuma imagem encontrada nesta pasta (resposta vazia)`);
     }
   } catch (error) {
     console.error(`[GoogleDrive] ❌ Erro ao buscar pasta ${folderName || folderId}:`, error);
@@ -79,18 +84,21 @@ async function getSubfolders(folderId: string, parentName: string = ''): Promise
 
   try {
     console.log(`[GoogleDrive] 📂 Listando subpastas de "${parentName || folderId}"...`);
+    console.log(`[GoogleDrive]    Query: ${folderQuery}`);
 
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(folderQuery)}&fields=files(id,name)&pageSize=100&key=${apiKey}`
-    );
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(folderQuery)}&fields=files(id,name)&pageSize=100&key=${apiKey}`;
+    const response = await fetch(url);
 
     if (!response.ok) {
-      console.warn(`[GoogleDrive] ❌ Erro ao listar subpastas de "${parentName}": ${response.statusText}`);
+      console.warn(`[GoogleDrive] ❌ Erro ao listar subpastas de "${parentName}": ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`[GoogleDrive] ❌ Resposta de erro:`, errorText);
       folderCache.set(cacheKey, []);
       return [];
     }
 
     const data = await response.json();
+    console.log(`[GoogleDrive]    Resposta da API (subpastas):`, data);
 
     if (data.files && data.files.length > 0) {
       console.log(`[GoogleDrive] 📦 Encontradas ${data.files.length} subpasta(s):`);
@@ -99,7 +107,7 @@ async function getSubfolders(folderId: string, parentName: string = ''): Promise
         console.log(`[GoogleDrive]   📁 ${folder.name}`);
       }
     } else {
-      console.log(`[GoogleDrive] 📭 Nenhuma subpasta encontrada em "${parentName}"`);
+      console.log(`[GoogleDrive] 📭 Nenhuma subpasta encontrada em "${parentName}" (resposta vazia)`);
     }
 
     folderCache.set(cacheKey, subfolders);
