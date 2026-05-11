@@ -2,9 +2,10 @@ import { useState } from "react";
 import Layout from "@/components/Layout";
 import SupabaseConfig from "@/components/SupabaseConfig";
 import ImportExportProducts from "@/components/ImportExportProducts";
+import ImageSourceConfig from "@/components/ImageSourceConfig";
 import { useProducts } from "@/hooks/useProducts";
 import { Card } from "@/components/ui/card";
-import { Settings, Database, Package } from "lucide-react";
+import { Settings, Database, Package, Image } from "lucide-react";
 
 export default function SettingsPage() {
   const { products, refetch } = useProducts();
@@ -47,6 +48,11 @@ export default function SettingsPage() {
               onImport={handleImportSuccess}
               onDelete={handleDeleteSuccess}
             />
+          </div>
+
+          {/* Image Source Configuration */}
+          <div className="lg:col-span-1">
+            <ImageSourceConfig />
           </div>
         </div>
 

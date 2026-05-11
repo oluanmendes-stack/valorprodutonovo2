@@ -51,7 +51,7 @@ export default function BatchReport({ reports }: BatchReportProps) {
     products.forEach(product => {
       totalPrice += product.totalPrice || 0;
       totalPriceWithIPI += product.totalPriceWithIPI || 0;
-      totalPriceMultiplied += (product.priceMultiplied || 0);
+      totalPriceMultiplied += (product.totalPriceMultiplied || 0);
     });
 
     return { totalPrice, totalPriceWithIPI, totalPriceMultiplied };
@@ -90,6 +90,7 @@ export default function BatchReport({ reports }: BatchReportProps) {
                   distributorPrice={product.distributorPrice}
                   finalPrice={product.finalPrice}
                   priceMultiplied={product.priceMultiplied}
+                  totalPriceMultiplied={product.totalPriceMultiplied}
                 />
               ))}
             </div>

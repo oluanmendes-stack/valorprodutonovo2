@@ -1,12 +1,15 @@
 import { shouldUseSupabaseStorage, getImageStorageUrl } from "@/lib/supabase-storage";
 import { supabase } from "@/lib/supabase";
+import { findGoogleDriveImages, clearGoogleDriveImageCache } from "./googleDriveImageService";
+import { getImageSource, isGoogleDriveAvailable } from "@/lib/imageSourceConfig";
 
 /**
- * Service to find product images from Supabase Storage
- * Images are organized by brand folders in the 'imagens' bucket
+ * Service to find product images from multiple sources
+ * - Primary: Google Drive (if configured)
+ * - Fallback: Supabase Storage (organized by brand folders in the 'imagens' bucket)
  *
- * In production: Uses Supabase Storage
- * In development: Uses local API endpoint
+ * In production: Uses Supabase Storage or Google Drive
+ * In development: Uses local API endpoint or Google Drive
  */
 
 export interface ProductImage {
@@ -132,13 +135,25 @@ async function buildFolderStructure(folderPath: string): Promise<void> {
 }
 
 /**
- * Find images for a product code
+ * Find images for a product code from the configured source
  * Uses pre-cached folder structure if available, otherwise falls back to dynamic search
- * Directly searches Supabase Storage with all naming pattern variations
+ * Checks Google Drive first if configured, falls back to Supabase Storage
  * No server API dependency - pure client-side
  */
 export async function findProductImages(code: string): Promise<string[]> {
-  // Check cache first
+  const source = getImageSource();
+
+  // Try Google Drive first if it's the preferred source and available
+  if (source === 'googledrive' && isGoogleDriveAvailable()) {
+    console.log(`[findProductImages] Using Google Drive as image source for: ${code}`);
+    const googleDriveImages = await findGoogleDriveImages(code);
+    if (googleDriveImages.length > 0) {
+      return googleDriveImages;
+    }
+    console.log(`[findProductImages] No images found on Google Drive, falling back to Supabase`);
+  }
+
+  // Check cache first for Supabase
   if (imageCache.has(code)) {
     const cached = imageCache.get(code) || [];
     console.log(`[findProductImages] Using cached result: ${cached.length} images for ${code}`);
@@ -146,7 +161,7 @@ export async function findProductImages(code: string): Promise<string[]> {
   }
 
   try {
-    console.log(`[findProductImages] Searching for images of product code: ${code}`);
+    console.log(`[findProductImages] Searching for images of product code in Supabase: ${code}`);
     const images = await generateImageUrls(code);
 
     // Cache the result
@@ -385,13 +400,13 @@ export async function findImagesFlexible(code: string): Promise<string[]> {
   if (code.includes('/')) {
     const parts = code.split('/').map(p => p.trim()).filter(p => p.length > 0);
     const allImages = new Set<string>();
-    
+
     for (const part of parts) {
       // Recursively find images for each part
       const partImages = await findImagesFlexible(part);
       partImages.forEach(img => allImages.add(img));
     }
-    
+
     // If we found any images for the parts, return them
     if (allImages.size > 0) {
       return Array.from(allImages);
@@ -422,3 +437,17 @@ export async function findImagesFlexible(code: string): Promise<string[]> {
 
   return images;
 }
+
+/**
+ * Clear all image caches (both Supabase and Google Drive)
+ */
+export function clearAllImageCaches(): void {
+  imageCache.clear();
+  clearGoogleDriveImageCache();
+  console.log('[imageService] All image caches cleared');
+}
+
+/**
+ * Export image source configuration for UI usage
+ */
+export { getImageSource, setImageSource, isGoogleDriveAvailable, isSupabaseAvailable } from '@/lib/imageSourceConfig';
