@@ -27,6 +27,8 @@ export function useImages() {
    * No validation - the browser will handle image loading and errors
    */
   const findImages = useCallback(async (code: string): Promise<string[]> => {
+    console.log(`[useImages] 🔍 INICIANDO BUSCA PARA: ${code}`);
+
     if (!code || code.trim() === "") {
       setError("Product code is required");
       return [];
@@ -37,8 +39,9 @@ export function useImages() {
     setImages([]);
 
     try {
+      console.log(`[useImages] Chamando findImagesFlexible para: ${code}`);
       const imageUrls = await findImagesFlexible(code);
-      console.log(`[useImages] Generated ${imageUrls.length} image URLs for ${code}`);
+      console.log(`[useImages] ✅ Generated ${imageUrls.length} image URLs for ${code}`);
 
       if (imageUrls.length === 0) {
         const message = `Nenhuma URL gerada para o código "${code}".`;
