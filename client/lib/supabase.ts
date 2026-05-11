@@ -151,7 +151,8 @@ export async function fetchProductsByCode(codes: string[]): Promise<Product[]> {
  * Generate batch report - uses client-side generation
  */
 export async function generateBatchReport(
-  batches: BatchItem[]
+  batches: BatchItem[],
+  multiplier: number = 3
 ): Promise<{
   success: boolean;
   reports: Array<{
@@ -167,20 +168,23 @@ export async function generateBatchReport(
       priceWithIPI: number;
       totalPrice: number;
       totalPriceWithIPI: number;
+      priceMultiplied?: number;
+      totalPriceMultiplied?: number;
     }>;
     batchTotalPrice: number;
     batchTotalPriceWithIPI: number;
   }>;
   notFoundCodes: string[];
 }> {
-  return generateBatchReportClientSide(batches);
+  return generateBatchReportClientSide(batches, multiplier);
 }
 
 /**
  * Client-side fallback for batch report generation (with descriptors)
  */
 async function generateBatchReportClientSide(
-  batches: BatchItem[]
+  batches: BatchItem[],
+  multiplier: number = 3
 ): Promise<{
   success: boolean;
   reports: Array<{
@@ -196,6 +200,8 @@ async function generateBatchReportClientSide(
       priceWithIPI: number;
       totalPrice: number;
       totalPriceWithIPI: number;
+      priceMultiplied?: number;
+      totalPriceMultiplied?: number;
     }>;
     batchTotalPrice: number;
     batchTotalPriceWithIPI: number;
@@ -229,6 +235,8 @@ async function generateBatchReportClientSide(
           const priceWithIPI = typeof product.priceFinalWithIPI === 'number' ? product.priceFinalWithIPI : 0;
           const totalPrice = price * batch.quantity;
           const totalPriceWithIPI = priceWithIPI * batch.quantity;
+          const priceMultiplied = priceWithIPI * multiplier;
+          const totalPriceMultiplied = totalPriceWithIPI * multiplier;
 
           // Load descriptor for the product
           let descriptor: string | null = null;
@@ -250,6 +258,8 @@ async function generateBatchReportClientSide(
             priceWithIPI,
             totalPrice,
             totalPriceWithIPI,
+            priceMultiplied,
+            totalPriceMultiplied,
             distributorPrice,
             finalPrice,
           });

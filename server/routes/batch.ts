@@ -43,6 +43,7 @@ export interface BatchItem {
   loteNumber: string;
   codes: string[];
   quantity: number;
+  multiplier?: number;
 }
 
 export interface BatchReport {
@@ -57,6 +58,7 @@ export interface BatchReport {
     priceWithIPI: number;
     totalPrice: number;
     totalPriceWithIPI: number;
+    priceMultiplied?: number;
   }>;
   batchTotalPrice: number;
   batchTotalPriceWithIPI: number;
@@ -159,7 +161,8 @@ function getProductDescriptor(productCode: string): string | null {
 export const generateBatchReport: RequestHandler = async (req, res) => {
   try {
     const supabase = getSupabase();
-    const { batches } = req.body;
+    const { batches, multiplier } = req.body;
+    const finalMultiplier = typeof multiplier === 'number' ? multiplier : 3;
 
     if (!Array.isArray(batches) || batches.length === 0) {
       res.status(400).json({
@@ -217,9 +220,10 @@ export const generateBatchReport: RequestHandler = async (req, res) => {
                                   typeof product.priceWithIPI === 'number' ? product.priceWithIPI : 0;
           const totalPrice = unitPrice * batch.quantity;
           const totalPriceWithIPI = unitPriceWithIPI * batch.quantity;
+          const priceMultiplied = unitPriceWithIPI * finalMultiplier;
           const descriptor = getProductDescriptor(product.code);
 
-          console.log(`[generateBatchReport] Product ${product.code}: price=${unitPrice}, priceWithIPI=${unitPriceWithIPI}`);
+          console.log(`[generateBatchReport] Product ${product.code}: price=${unitPrice}, priceWithIPI=${unitPriceWithIPI}, multiplied=${priceMultiplied}`);
 
           batchProducts.push({
             code: product.code,
@@ -229,6 +233,7 @@ export const generateBatchReport: RequestHandler = async (req, res) => {
             priceWithIPI: unitPriceWithIPI,
             totalPrice,
             totalPriceWithIPI,
+            priceMultiplied,
           });
 
           batchTotalPrice += totalPrice;
@@ -273,7 +278,8 @@ export const generateBatchReport: RequestHandler = async (req, res) => {
 export const exportBatchPDF: RequestHandler = async (req, res) => {
   try {
     const supabase = getSupabase();
-    const { batches } = req.body;
+    const { batches, multiplier } = req.body;
+    const finalMultiplier = typeof multiplier === 'number' ? multiplier : 3;
 
     if (!Array.isArray(batches) || batches.length === 0) {
       console.error("[exportBatchPDF] No batches provided");
@@ -416,7 +422,7 @@ export const exportBatchPDF: RequestHandler = async (req, res) => {
                                   typeof product.priceWithIPI === 'number' ? product.priceWithIPI : 0;
           const totalPrice = unitPrice * batch.quantity;
           const totalPriceWithIPI = unitPriceWithIPI * batch.quantity;
-          const priceX3 = unitPriceWithIPI * 3;
+          const priceMultiplied = unitPriceWithIPI * finalMultiplier;
 
           // Get descriptor
           const descriptor = getProductDescriptor(product.code);
@@ -439,8 +445,8 @@ export const exportBatchPDF: RequestHandler = async (req, res) => {
           // Total price final
           drawTableRow("VALOR TOTAL LOTE (Final):", `R$ ${totalPriceWithIPI.toFixed(2)}`);
 
-          // Price X3
-          drawTableRow("Preço Final c/ IPI X3 (Unitário):", `R$ ${priceX3.toFixed(2)}`);
+          // Price Multiplied
+          drawTableRow(`Preço Final c/ IPI X${finalMultiplier} (Unitário):`, `R$ ${priceMultiplied.toFixed(2)}`);
 
           // Descriptor - keep full text, let drawTableRow handle wrapping
           if (descriptor) {
@@ -484,7 +490,8 @@ export const exportBatchPDF: RequestHandler = async (req, res) => {
 export const exportBatchExcel: RequestHandler = async (req, res) => {
   try {
     const supabase = getSupabase();
-    const { batches } = req.body;
+    const { batches, multiplier } = req.body;
+    const finalMultiplier = typeof multiplier === 'number' ? multiplier : 3;
 
     if (!Array.isArray(batches) || batches.length === 0) {
       console.error("[exportBatchExcel] No batches provided");
@@ -531,7 +538,7 @@ export const exportBatchExcel: RequestHandler = async (req, res) => {
     for (const batch of batches as BatchItem[]) {
       console.log(`[exportBatchExcel] Processing batch "${batch.loteNumber}" with ${batch.codes.length} codes`);
       worksheetData.push([`Lote: ${batch.loteNumber}`, `Quantidade: ${batch.quantity}`]);
-      worksheetData.push(["Código", "Descrição", "Descritivo", "Preço Unit. Distribuidor c/ IPI", "Preço Unit. Final c/ IPI", "Total", "Total + IPI"]);
+      worksheetData.push(["Código", "Descrição", "Descritivo", "Preço Unit. Distribuidor c/ IPI", "Preço Unit. Final c/ IPI", "Total", "Total + IPI", `Preço X${finalMultiplier}`]);
 
       let batchTotalPrice = 0;
       let batchTotalPriceWithIPI = 0;
@@ -554,6 +561,7 @@ export const exportBatchExcel: RequestHandler = async (req, res) => {
                                   typeof product.priceWithIPI === 'number' ? product.priceWithIPI : 0;
           const totalPrice = unitPrice * batch.quantity;
           const totalPriceWithIPI = unitPriceWithIPI * batch.quantity;
+          const priceMultiplied = unitPriceWithIPI * finalMultiplier;
 
           // Get descriptor if available
           const descriptor = getProductDescriptor(product.code) || "";
@@ -566,6 +574,7 @@ export const exportBatchExcel: RequestHandler = async (req, res) => {
             unitPriceWithIPI,
             totalPrice,
             totalPriceWithIPI,
+            priceMultiplied,
           ]);
 
           batchTotalPrice += totalPrice;
@@ -587,6 +596,7 @@ export const exportBatchExcel: RequestHandler = async (req, res) => {
       { wch: 15 },
       { wch: 50 },
       { wch: 80 },
+      { wch: 15 },
       { wch: 15 },
       { wch: 15 },
       { wch: 15 },

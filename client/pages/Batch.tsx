@@ -38,6 +38,7 @@ export default function Batch() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedProductCode, setSelectedProductCode] = useState<string | null>(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [multiplier, setMultiplier] = useState(3);
   const { products } = useSupabaseProducts();
   const { generateReport, exportPDF, exportExcel } = useSupabaseBatch();
 
@@ -237,7 +238,7 @@ export default function Batch() {
 
     setLoading(true);
     try {
-      const reports = await generateReport(lotes);
+      const reports = await generateReport(lotes, multiplier);
       if (reports) {
         setReportData(reports);
         toast.success("Relatório gerado com sucesso!");
@@ -260,7 +261,7 @@ export default function Batch() {
 
     setLoading(true);
     try {
-      await exportPDF(lotes);
+      await exportPDF(lotes, multiplier);
     } catch (error) {
       toast.error("Erro ao gerar relatório");
       console.error(error);
@@ -277,7 +278,7 @@ export default function Batch() {
 
     setLoading(true);
     try {
-      await exportExcel(lotes);
+      await exportExcel(lotes, multiplier);
     } catch (error) {
       toast.error("Erro ao gerar planilha");
       console.error(error);
@@ -459,7 +460,29 @@ export default function Batch() {
                 </p>
               </div>
 
-              <div className="pt-4 space-y-2 border-t border-border">
+              <div className="pt-4 space-y-3 border-t border-border">
+                <div>
+                  <Label htmlFor="multiplier" className="text-sm font-500 block mb-2">
+                    Multiplicador de Preço
+                  </Label>
+                  <Input
+                    id="multiplier"
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="0.1"
+                    value={multiplier}
+                    onChange={(e) => setMultiplier(Math.max(1, parseFloat(e.target.value) || 1))}
+                    className="w-full"
+                    placeholder="Ex: 3"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Preço final será multiplicado por X{multiplier}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 space-y-2">
                 <Button
                   onClick={handleLoadAllProducts}
                   disabled={products.length === 0}
