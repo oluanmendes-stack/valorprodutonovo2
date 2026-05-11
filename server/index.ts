@@ -27,6 +27,7 @@ import {
   openImage,
   getImagesFolderPath,
 } from "./routes/images";
+import { proxyGoogleDriveImage } from "./routes/google-drive-proxy";
 import {
   getDescriptor,
   getAnvisaRegistration,
@@ -167,6 +168,9 @@ export async function createServer() {
   apiRouter.get("/images/file", getImageFile);
   apiRouter.post("/images/open", openImage);
   apiRouter.get("/images/:code", findProductImages);
+
+  // ===== GOOGLE DRIVE PROXY API =====
+  apiRouter.get("/proxy-google-image", proxyGoogleDriveImage);
 
   // Apply the router to both /api and root /
   // This ensures compatibility with both Netlify redirects and local development

@@ -49,9 +49,13 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
 
         // Match if filename contains the product code
         if (nameLower.includes(codeLower)) {
+          // Use proxy URL to bypass CORS restrictions
           const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
-          images.push(directLink);
+          const proxyUrl = `/api/proxy-google-image?url=${encodeURIComponent(directLink)}`;
+          images.push(proxyUrl);
           console.log(`[GoogleDrive]   ✅ CORRESPONDÊNCIA ENCONTRADA: ${file.name}`);
+          console.log(`[GoogleDrive]      URL original: ${directLink}`);
+          console.log(`[GoogleDrive]      URL proxy: ${proxyUrl}`);
         } else {
           console.log(`[GoogleDrive]   ❌ Sem correspondência: "${file.name}" não contém "${codeLower}"`);
         }
