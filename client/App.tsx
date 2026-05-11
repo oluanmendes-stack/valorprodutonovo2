@@ -48,4 +48,6 @@ const App = () => (
   </QueryClientProvider>
 );
 
+export default App;
+
 createRoot(document.getElementById("root")!).render(<App />);
