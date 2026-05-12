@@ -21,18 +21,32 @@ export const proxyGoogleDriveImage: RequestHandler = async (req, res) => {
 
     console.log(`[GoogleDriveProxy] 🔄 Proxying image: ${url.substring(0, 100)}...`);
 
+    // Extract file ID from Google Drive URL
+    let fileId = null;
+    const idMatch = url.match(/[?&]id=([^&]+)/);
+    if (idMatch && idMatch[1]) {
+      fileId = idMatch[1];
+      console.log(`[GoogleDriveProxy]    File ID: ${fileId}`);
+    }
+
+    // Try with alt=media parameter for direct download
+    const targetUrl = fileId
+      ? `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${process.env.VITE_GOOGLE_DRIVE_API_KEY}`
+      : url;
+
+    console.log(`[GoogleDriveProxy]    Target URL: ${targetUrl.substring(0, 100)}...`);
+
     // Fetch the image from Google Drive with better headers for auth
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl, {
       signal: controller.signal,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "image/*,*/*",
+        "Accept": "image/*,*/*,application/octet-stream",
         "Referer": "https://drive.google.com/",
-        "Cookie": "",
       },
     });
 
@@ -42,7 +56,9 @@ export const proxyGoogleDriveImage: RequestHandler = async (req, res) => {
       console.error(
         `[GoogleDriveProxy] ❌ Failed to fetch image: ${response.status} ${response.statusText}`
       );
-      console.error(`[GoogleDriveProxy]    Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+      console.error(`[GoogleDriveProxy]    URL tentada: ${targetUrl.substring(0, 100)}`);
+      const errorText = await response.text().catch(() => "");
+      if (errorText) console.error(`[GoogleDriveProxy]    Response: ${errorText.substring(0, 200)}`);
       return res.status(response.status).json({
         error: `Failed to fetch image: ${response.statusText}`,
         status: response.status,

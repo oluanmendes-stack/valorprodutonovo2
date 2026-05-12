@@ -137,14 +137,14 @@ export default function ImageViewer({
                     alt={`Produto ${productCode} - Imagem ${currentIndex + 1}`}
                     className="max-w-full max-h-full object-contain p-2"
                     onLoad={(e) => {
-                      console.log(`[ImageViewer] ✅ Imagem carregada com sucesso: ${currentImage}`);
+                      console.log(`[ImageViewer] ✅ Imagem carregada com sucesso`);
+                      console.log(`[ImageViewer]    URL: ${currentImage}`);
                     }}
                     onError={(e) => {
-                      console.error(`[ImageViewer] ❌ Erro ao carregar imagem:`, {
-                        url: currentImage,
-                        status: (e.target as any).status,
-                        error: e
-                      });
+                      console.error(`[ImageViewer] ❌ Erro ao carregar imagem`);
+                      console.error(`[ImageViewer]    URL: ${currentImage}`);
+                      console.error(`[ImageViewer]    Status: ${(e.target as any).status}`);
+
                       // Handle missing images gracefully
                       const img = e.target as HTMLImageElement;
                       img.style.display = 'none';
@@ -157,7 +157,8 @@ export default function ImageViewer({
                           <div class="text-center space-y-3">
                             <p><strong>Erro ao carregar imagem</strong></p>
                             <p class="text-xs break-all max-w-md">URL: ${currentImage}</p>
-                            <p class="text-xs text-orange-600">Problema de CORS, permissão ou autenticação</p>
+                            <p class="text-xs text-orange-600">Problema de carregamento via proxy</p>
+                            <p class="text-xs text-gray-500">Verifique o console (F12) para mais detalhes</p>
                           </div>
                         `;
                         container.appendChild(errorDiv);
@@ -254,10 +255,12 @@ export default function ImageViewer({
                         src={image}
                         alt={`Thumbnail ${index + 1}`}
                         className="w-16 h-16 object-cover rounded bg-muted"
+                        loading="lazy"
                         onError={(e) => {
                           // Show placeholder for failed images
                           const target = e.target as HTMLImageElement;
-                          target.style.opacity = '0.5';
+                          target.style.opacity = '0.3';
+                          console.warn(`[ImageViewer] ⚠️ Thumbnail falhou ao carregar: ${image.substring(0, 80)}`);
                         }}
                       />
                     </button>
