@@ -11,6 +11,13 @@ const folderCache = new Map<string, string[]>();
 const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
 const parentFolderId = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID;
 
+// Debug log
+console.log(`[GoogleDrive] 🔐 API Key configurada: ${!!apiKey}`);
+console.log(`[GoogleDrive] 📁 Folder ID configurado: ${!!parentFolderId}`);
+if (parentFolderId) {
+  console.log(`[GoogleDrive]    Folder ID: ${parentFolderId}`);
+}
+
 /**
  * Search for images in a specific folder
  */
@@ -23,9 +30,10 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
 
   try {
     console.log(`[GoogleDrive] 🔍 Procurando em pasta: ${folderName || folderId}`);
+    console.log(`[GoogleDrive]    Código procurado: "${codeLower}"`);
     console.log(`[GoogleDrive]    Query: ${imageQuery}`);
 
-    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`;
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&pageSize=100&orderBy=name&key=${apiKey}`;
     console.log(`[GoogleDrive]    URL: ${url.substring(0, 100)}...`);
 
     const response = await fetch(url);
@@ -33,35 +41,42 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
     if (!response.ok) {
       console.warn(`[GoogleDrive] ❌ Erro na API ao buscar pasta ${folderName || folderId}: ${response.status} ${response.statusText}`);
       const errorText = await response.text();
-      console.error(`[GoogleDrive] ❌ Resposta de erro:`, errorText);
+      console.error(`[GoogleDrive] ❌ Resposta completa de erro:`, errorText);
       return [];
     }
 
     const data = await response.json();
-    console.log(`[GoogleDrive]    Resposta da API:`, data);
+    console.log(`[GoogleDrive]    Total de arquivos na pasta: ${data.files?.length || 0}`);
 
     if (data.files && data.files.length > 0) {
       console.log(`[GoogleDrive] 📁 Encontrados ${data.files.length} arquivo(s) de imagem nesta pasta:`);
 
       for (const file of data.files) {
         const nameLower = file.name.toLowerCase();
-        console.log(`[GoogleDrive]   📄 ${file.name} (procurando por: "${codeLower}")`);
+        console.log(`[GoogleDrive]   📄 "${file.name}" (ID: ${file.id})`);
 
-        // Match if filename contains the product code
-        if (nameLower.includes(codeLower)) {
+        // Match if filename contains the product code (exact match or with common extensions)
+        const codeWithoutExt = codeLower.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '');
+        const fileWithoutExt = nameLower.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '');
+
+        const matches = nameLower.includes(codeLower) || fileWithoutExt === codeWithoutExt || fileWithoutExt.includes(codeWithoutExt);
+
+        if (matches) {
           // Use proxy URL to bypass CORS restrictions
           const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
           const proxyUrl = `/api/proxy-google-image?url=${encodeURIComponent(directLink)}`;
           images.push(proxyUrl);
-          console.log(`[GoogleDrive]   ✅ CORRESPONDÊNCIA ENCONTRADA: ${file.name}`);
-          console.log(`[GoogleDrive]      URL original: ${directLink}`);
-          console.log(`[GoogleDrive]      URL proxy: ${proxyUrl}`);
+          console.log(`[GoogleDrive]      ✅ ENCONTRADA (contém "${codeLower}")`);
+          console.log(`[GoogleDrive]         Arquivo: ${file.name}`);
+          console.log(`[GoogleDrive]         ID: ${file.id}`);
+          console.log(`[GoogleDrive]         Link direto: ${directLink}`);
+          console.log(`[GoogleDrive]         URL proxy: ${proxyUrl}`);
         } else {
-          console.log(`[GoogleDrive]   ❌ Sem correspondência: "${file.name}" não contém "${codeLower}"`);
+          console.log(`[GoogleDrive]      ❌ NÃO é match (não contém "${codeLower}")`);
         }
       }
     } else {
-      console.log(`[GoogleDrive] 📭 Nenhuma imagem encontrada nesta pasta (resposta vazia)`);
+      console.log(`[GoogleDrive] 📭 Nenhuma imagem encontrada nesta pasta (resposta da API vazia)`);
     }
   } catch (error) {
     console.error(`[GoogleDrive] ❌ Erro ao buscar pasta ${folderName || folderId}:`, error);
@@ -204,6 +219,8 @@ export async function findGoogleDriveImages(code: string): Promise<string[]> {
     if (images.length > 0) {
       images.forEach((url, idx) => {
         console.log(`[GoogleDrive]   ${idx + 1}. ${url}`);
+        // Test if proxy URL is accessible
+        console.log(`[GoogleDrive]      Testando URL: ${url.substring(0, 100)}...`);
       });
     }
     console.log(`[GoogleDrive] ======================================\n`);

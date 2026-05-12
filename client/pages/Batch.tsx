@@ -597,9 +597,9 @@ export default function Batch() {
                         {lote.codes.length} código(s)
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {lote.codes.map((code) => (
+                        {lote.codes.map((code, index) => (
                           <div
-                            key={code}
+                            key={`${lote.id}-${index}`}
                             className="flex items-center gap-1 px-2 py-1 bg-primary/20 text-primary text-xs font-500 rounded"
                           >
                             <span>{code}</span>

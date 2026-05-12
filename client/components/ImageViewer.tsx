@@ -136,12 +136,15 @@ export default function ImageViewer({
                     src={currentImage}
                     alt={`Produto ${productCode} - Imagem ${currentIndex + 1}`}
                     className="max-w-full max-h-full object-contain p-2"
-                    crossOrigin="anonymous"
                     onLoad={(e) => {
-                      console.log(`[ImageViewer] ✅ Imagem carregada: ${currentImage}`);
+                      console.log(`[ImageViewer] ✅ Imagem carregada com sucesso`);
+                      console.log(`[ImageViewer]    URL: ${currentImage}`);
                     }}
                     onError={(e) => {
-                      console.error(`[ImageViewer] ❌ Erro ao carregar imagem: ${currentImage}`);
+                      console.error(`[ImageViewer] ❌ Erro ao carregar imagem`);
+                      console.error(`[ImageViewer]    URL: ${currentImage}`);
+                      console.error(`[ImageViewer]    Status: ${(e.target as any).status}`);
+
                       // Handle missing images gracefully
                       const img = e.target as HTMLImageElement;
                       img.style.display = 'none';
@@ -152,12 +155,10 @@ export default function ImageViewer({
                         errorDiv.className = 'flex flex-col items-center justify-center h-96 text-muted-foreground';
                         errorDiv.innerHTML = `
                           <div class="text-center space-y-3">
-                            <p><strong>Imagem não conseguiu carregar</strong></p>
+                            <p><strong>Erro ao carregar imagem</strong></p>
                             <p class="text-xs break-all max-w-md">URL: ${currentImage}</p>
-                            <p class="text-xs text-orange-600">Pode ser um problema de CORS ou permissão no Google Drive</p>
-                            <button onclick="window.open('${currentImage}', '_blank')" class="text-blue-500 hover:underline text-xs">
-                              Clique aqui para abrir no Google Drive
-                            </button>
+                            <p class="text-xs text-orange-600">Problema de carregamento via proxy</p>
+                            <p class="text-xs text-gray-500">Verifique o console (F12) para mais detalhes</p>
                           </div>
                         `;
                         container.appendChild(errorDiv);
@@ -254,10 +255,12 @@ export default function ImageViewer({
                         src={image}
                         alt={`Thumbnail ${index + 1}`}
                         className="w-16 h-16 object-cover rounded bg-muted"
+                        loading="lazy"
                         onError={(e) => {
                           // Show placeholder for failed images
                           const target = e.target as HTMLImageElement;
-                          target.style.opacity = '0.5';
+                          target.style.opacity = '0.3';
+                          console.warn(`[ImageViewer] ⚠️ Thumbnail falhou ao carregar: ${image.substring(0, 80)}`);
                         }}
                       />
                     </button>
