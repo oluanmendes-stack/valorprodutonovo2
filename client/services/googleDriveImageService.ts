@@ -25,7 +25,7 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
     console.log(`[GoogleDrive] 🔍 Procurando em pasta: ${folderName || folderId}`);
     console.log(`[GoogleDrive]    Query: ${imageQuery}`);
 
-    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&orderBy=name&key=${apiKey}`;
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&fields=files(id,name,webViewLink)&pageSize=100&orderBy=name&key=${apiKey}`;
     console.log(`[GoogleDrive]    URL: ${url.substring(0, 100)}...`);
 
     const response = await fetch(url);
@@ -47,8 +47,11 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
         const nameLower = file.name.toLowerCase();
         console.log(`[GoogleDrive]   📄 ${file.name} (procurando por: "${codeLower}")`);
 
-        // Match if filename contains the product code
-        if (nameLower.includes(codeLower)) {
+        // Match if filename contains the product code (exact match or with common extensions)
+        const codeWithoutExt = codeLower.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '');
+        const fileWithoutExt = nameLower.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '');
+
+        if (nameLower.includes(codeLower) || fileWithoutExt === codeWithoutExt || fileWithoutExt.includes(codeWithoutExt)) {
           // Use proxy URL to bypass CORS restrictions
           const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
           const proxyUrl = `/api/proxy-google-image?url=${encodeURIComponent(directLink)}`;
