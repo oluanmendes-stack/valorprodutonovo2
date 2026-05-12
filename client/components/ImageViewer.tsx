@@ -27,12 +27,14 @@ export default function ImageViewer({
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Load images when dialog opens or product code changes
+  // Always reset and refetch images when modal opens
   useEffect(() => {
     if (open) {
-      findImages(productCode);
       setCurrentIndex(0);
+      // Force fresh search by calling findImages
+      findImages(productCode);
     }
-  }, [open, productCode, findImages]);
+  }, [open, productCode]);
 
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen);
