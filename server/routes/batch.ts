@@ -322,10 +322,12 @@ export const exportBatchPDF: RequestHandler = async (req, res) => {
 
     const doc = new PDFDocument({ margin: 50 });
     const filename = `batch_report_${Date.now()}.pdf`;
+    const chunks: Buffer[] = [];
 
-    // Set response headers for file download
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    // Collect PDF chunks into buffer instead of piping directly
+    doc.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
 
     // Handle doc errors
     doc.on("error", (err: any) => {
@@ -338,8 +340,14 @@ export const exportBatchPDF: RequestHandler = async (req, res) => {
       }
     });
 
-    // Pipe the PDF document to the response
-    doc.pipe(res);
+    // Send response after PDF is finalized
+    doc.on("end", () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    });
 
     let totalFoundCount = 0;
     let totalNotFoundCount = 0;

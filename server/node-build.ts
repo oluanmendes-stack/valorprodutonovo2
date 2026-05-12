@@ -1,5 +1,6 @@
 import path from "path";
 import * as fs from "fs";
+import * as path from "path";
 import { createServer } from "./index";
 import * as express from "express";
 
@@ -47,7 +48,10 @@ async function startServer() {
       return res.status(404).json({ error: "API endpoint not found" });
     }
 
-    res.sendFile(path.join(distPath, "index.html"));
+    const indexPath = path.join(distPath, "index.html");
+    const buffer = fs.readFileSync(indexPath);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(buffer);
   });
 
   app.listen(port, () => {
