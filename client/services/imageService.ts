@@ -142,6 +142,8 @@ async function buildFolderStructure(folderPath: string): Promise<void> {
  */
 export async function findProductImages(code: string): Promise<string[]> {
   const source = getImageSource();
+  // Create cache key that includes the source to differentiate between sources
+  const cacheKey = `${source}::${code}`;
 
   // Use Google Drive if it's the preferred source and available
   if (source === 'googledrive') {
@@ -151,12 +153,14 @@ export async function findProductImages(code: string): Promise<string[]> {
     }
     console.log(`[findProductImages] Using Google Drive as image source for: ${code}`);
     const googleDriveImages = await findGoogleDriveImages(code);
+    // Cache Google Drive results
+    imageCache.set(cacheKey, googleDriveImages);
     return googleDriveImages;
   }
 
-  // Check cache first for Supabase
-  if (imageCache.has(code)) {
-    const cached = imageCache.get(code) || [];
+  // Check cache first for Supabase (only use if source is supabase)
+  if (imageCache.has(cacheKey)) {
+    const cached = imageCache.get(cacheKey) || [];
     console.log(`[findProductImages] Using cached result: ${cached.length} images for ${code}`);
     return cached;
   }
@@ -165,8 +169,8 @@ export async function findProductImages(code: string): Promise<string[]> {
     console.log(`[findProductImages] Searching for images of product code in Supabase: ${code}`);
     const images = await generateImageUrls(code);
 
-    // Cache the result
-    imageCache.set(code, images);
+    // Cache the result with source-aware key
+    imageCache.set(cacheKey, images);
 
     if (images.length === 0) {
       console.warn(`[findProductImages] No image URLs generated for product code: ${code}`);
@@ -180,7 +184,7 @@ export async function findProductImages(code: string): Promise<string[]> {
     return images;
   } catch (error) {
     console.error(`[findProductImages] Error finding images for ${code}:`, error);
-    imageCache.set(code, []);
+    imageCache.set(cacheKey, []);
     return [];
   }
 }
