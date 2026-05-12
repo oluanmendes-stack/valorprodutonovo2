@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import BatchReport from "@/components/BatchReport";
 import ImageViewer from "@/components/ImageViewer";
+import CatalogViewer from "@/components/CatalogViewer";
 import CompatibilityMini from "@/components/CompatibilityMini";
 import { useSupabaseBatch, type Lote } from "@/hooks/useSupabaseBatch";
 import { useSupabaseProducts } from "@/hooks/useSupabaseProducts";
@@ -38,6 +39,7 @@ export default function Batch() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedProductCode, setSelectedProductCode] = useState<string | null>(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [catalogViewerOpen, setCatalogViewerOpen] = useState(false);
   const [multiplier, setMultiplier] = useState(3);
   const { products } = useSupabaseProducts();
   const { generateReport, exportPDF, exportExcel } = useSupabaseBatch();
@@ -342,6 +344,43 @@ export default function Batch() {
     setImageViewerOpen(true);
   };
 
+  const handleOpenCatalogViewer = (code: string) => {
+    setSelectedProductCode(code);
+    setCatalogViewerOpen(true);
+  };
+
+  const handleCopyImageLink = async (code: string) => {
+    try {
+      const product = products.find((p) => p.code === code);
+      if (!product || !product.image) {
+        toast.error("Foto não configurada para este produto");
+        return;
+      }
+
+      // Get the image source preference
+      const { getImageSource } = await import("@/lib/imageSourceConfig");
+      const source = getImageSource();
+
+      let imageUrl = product.image;
+
+      // If it's from Google Drive, construct the proper URL
+      if (source === 'googledrive' && !imageUrl.startsWith('http')) {
+        // The image is likely a proxy URL, use it as is
+        imageUrl = product.image;
+      }
+
+      const fullUrl = imageUrl.startsWith('http')
+        ? imageUrl
+        : `${window.location.origin}${imageUrl}`;
+
+      await navigator.clipboard.writeText(fullUrl);
+      toast.success("Link da foto copiado para compartilhar!");
+    } catch (error) {
+      console.error("Error copying image link:", error);
+      toast.error("Erro ao copiar link da foto");
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-8 animate-fade-in">
@@ -576,6 +615,22 @@ export default function Batch() {
                               </Button>
                               <Button
                                 variant="ghost"
+                                onClick={() => handleCopyImageLink(code)}
+                                className="h-5 w-5 p-0 hover:bg-primary/30"
+                                title="Copiar link da foto"
+                              >
+                                <Share2 className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => handleOpenCatalogViewer(code)}
+                                className="h-5 w-5 p-0 hover:bg-primary/30"
+                                title="Ver catálogo"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
                                 onClick={() => handleCopyAnvisa(code)}
                                 className="h-5 w-5 p-0 hover:bg-primary/30"
                                 title="Copiar ANVISA"
@@ -665,6 +720,15 @@ export default function Batch() {
           productCode={selectedProductCode}
           open={imageViewerOpen}
           onOpenChange={setImageViewerOpen}
+        />
+      )}
+
+      {/* Catalog Viewer Modal */}
+      {selectedProductCode && (
+        <CatalogViewer
+          productCode={selectedProductCode}
+          open={catalogViewerOpen}
+          onOpenChange={setCatalogViewerOpen}
         />
       )}
     </Layout>

@@ -113,6 +113,21 @@ export default function CatalogViewer({
     return url.includes("drive.google.com");
   };
 
+  /**
+   * Convert Google Drive direct link to a viewer-compatible URL
+   */
+  const getGoogleDriveViewerUrl = (url: string): string => {
+    // Extract file ID from Google Drive URL
+    // Format: https://drive.google.com/uc?id=FILE_ID&export=view
+    const match = url.match(/[?&]id=([^&]+)/);
+    if (match && match[1]) {
+      const fileId = match[1];
+      // Return format compatible with Google Docs Viewer
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+    return url;
+  };
+
   const handleOpenCatalog = async () => {
     if (!catalogPath) return;
 
@@ -237,17 +252,18 @@ export default function CatalogViewer({
             {/* Document preview using Microsoft Office Online Viewer or direct link */}
             <div className="w-full bg-background border border-border rounded-lg overflow-hidden">
               {catalogPath.endsWith('.pdf') ? (
-                // PDF files - use Google Docs Viewer
+                // PDF files - use Google Drive embedded preview
                 <iframe
-                  src={`https://docs.google.com/gvjs?url=${encodeURIComponent(isGoogleDriveUrl(catalogPath) || isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
+                  src={isGoogleDriveUrl(catalogPath) ? getGoogleDriveViewerUrl(catalogPath) : `https://docs.google.com/gvjs?url=${encodeURIComponent(isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
                   className="w-full h-96 border-none"
                   title="Visualizador de Catálogo"
                   loading="lazy"
+                  allow="fullscreen"
                 />
               ) : (
                 // Word documents (.doc, .docx) - use Microsoft Office Online Viewer
                 <iframe
-                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(isGoogleDriveUrl(catalogPath) || isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
+                  src={isGoogleDriveUrl(catalogPath) ? getGoogleDriveViewerUrl(catalogPath) : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(isSupabaseUrl(catalogPath) ? catalogPath : `${window.location.origin}/api/catalogo/file?catalogPath=${encodeURIComponent(catalogPath)}`)}`}
                   className="w-full h-96 border-none"
                   title="Visualizador de Catálogo"
                   loading="lazy"
