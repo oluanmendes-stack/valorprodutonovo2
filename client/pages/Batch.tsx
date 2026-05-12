@@ -352,23 +352,22 @@ export default function Batch() {
   const handleCopyImageLink = async (code: string) => {
     try {
       const product = products.find((p) => p.code === code);
-      if (!product || !product.image) {
+      if (!product) {
+        toast.error("Produto não encontrado");
+        return;
+      }
+
+      // Dynamically find images for this product code
+      const { findImagesFlexible } = await import("@/services/imageService");
+      const images = await findImagesFlexible(code);
+
+      if (!images || images.length === 0) {
         toast.error("Foto não configurada para este produto");
         return;
       }
 
-      // Get the image source preference
-      const { getImageSource } = await import("@/lib/imageSourceConfig");
-      const source = getImageSource();
-
-      let imageUrl = product.image;
-
-      // If it's from Google Drive, construct the proper URL
-      if (source === 'googledrive' && !imageUrl.startsWith('http')) {
-        // The image is likely a proxy URL, use it as is
-        imageUrl = product.image;
-      }
-
+      // Copy the first image URL
+      const imageUrl = images[0];
       const fullUrl = imageUrl.startsWith('http')
         ? imageUrl
         : `${window.location.origin}${imageUrl}`;
