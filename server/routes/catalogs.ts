@@ -1,97 +1,97 @@
 import { RequestHandler } from "express";
 import * as fs from "fs";
 import * as path from "path";
-import { getCatalogStorageUrl } from "../lib/supabase-storage";
 
-/**
- * Find catalog file for a product code
- * Returns Supabase Storage URLs based on common naming patterns
- */
-export const findCatalogPath: RequestHandler = (req, res) => {
+const apiKey = process.env.VITE_GOOGLE_DRIVE_API_KEY;
+const catalogFolderId = '1gBxvgpDfyYJ34oYLGZOxru-4wO1hlp6i';
+
+async function findGoogleDriveCatalog(code: string): Promise<string | null> {
+  if (!apiKey) {
+    console.error("[Catalogs] ERRO: VITE_GOOGLE_DRIVE_API_KEY não está configurado");
+    return null;
+  }
+
+  try {
+    const codeLower = code.toLowerCase();
+    const query = `'${catalogFolderId}' in parents and name contains '${codeLower}' and trashed=false`;
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&key=${apiKey}&fields=files(id,name)`;
+
+    console.log(`[Catalogs] Buscando no Google Drive: "${code}"`);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`[Catalogs] Erro na resposta da API: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.files && data.files.length > 0) {
+      for (const file of data.files) {
+        const nameLower = file.name.toLowerCase();
+        if (
+          nameLower.includes(codeLower) &&
+          (nameLower.endsWith(".doc") ||
+            nameLower.endsWith(".docx") ||
+            nameLower.endsWith(".pdf"))
+        ) {
+          const directLink = `https://drive.google.com/uc?id=${file.id}&export=view`;
+          console.log(`✓ Catálogo encontrado: ${file.name}`);
+          return directLink;
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("[Catalogs] Erro ao buscar catálogo:", error);
+    return null;
+  }
+}
+
+export const findCatalogPath: RequestHandler = async (req, res) => {
   try {
     const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
 
     if (!code) {
       res.status(400).json({
         success: false,
-        error: "Product code required",
+        error: "Código do produto obrigatório",
       });
       return;
     }
 
-    console.log(`\n[Catalogs] SEARCH START: "${code}"`);
-    console.log(`[Catalogs] Using Supabase Storage`);
+    console.log(`\n[Catalogs] BUSCA INICIADA: "${code}"`);
+    console.log(`[Catalogs] Usando Google Drive`);
 
-    const catalogUrls: string[] = [];
+    const catalogUrl = await findGoogleDriveCatalog(code);
 
-    // Try common catalog file naming patterns
-    const patterns = [
-      code, // Try raw code first
-      `${code}.doc`,
-      `${code}.docx`,
-      `${code.toLowerCase()}.doc`,
-      `${code.toLowerCase()}.docx`,
-      `${code.toUpperCase()}.doc`,
-      `${code.toUpperCase()}.docx`,
-      `${code}.pdf`,
-      `${code.toLowerCase()}.pdf`,
-      `${code.toUpperCase()}.pdf`,
-    ];
-
-    console.log(`[Catalogs] Testing ${patterns.length} naming patterns for: "${code}"`);
-
-    // Generate Supabase Storage URLs for all possible patterns
-    console.log(`[Catalogs] Env Check: SUPABASE_URL is ${process.env.SUPABASE_URL ? "SET" : "EMPTY"}`);
-    
-    for (const pattern of patterns) {
-      try {
-        const storageUrl = getCatalogStorageUrl(pattern);
-        if (storageUrl && storageUrl.includes("supabase.co")) {
-          catalogUrls.push(storageUrl);
-          console.log(`✓ Generated URL for "${pattern}": ${storageUrl}`);
-        } else {
-          console.log(`✗ Empty/Invalid URL for "${pattern}"`);
-        }
-      } catch (err) {
-        console.warn(`Could not generate URL for pattern: ${pattern}`, err);
-      }
-    }
-
-    console.log(`[Catalogs] URLs generated: ${catalogUrls.length}`);
-
-    if (catalogUrls.length > 0) {
-      console.log(`[Catalogs] ✓ SEARCH COMPLETE - Found ${catalogUrls.length} URL(s)\n`);
+    if (catalogUrl) {
+      const proxyUrl = `/api/proxy-google-image?url=${encodeURIComponent(catalogUrl)}`;
+      console.log(`[Catalogs] ✓ BUSCA COMPLETA - Catálogo encontrado\n`);
       res.json({
         success: true,
         data: {
           code,
-          path: catalogUrls[0], // Return first URL as primary
-          paths: catalogUrls,    // Return all URLs for fallback options
-          source: "supabase-storage",
+          path: proxyUrl,
+          paths: [proxyUrl],
+          source: "google-drive",
         },
       });
     } else {
-      console.log(`[Catalogs] ✗ SEARCH COMPLETE - Not found for code: "${code}"\n`);
+      console.log(`[Catalogs] ✗ BUSCA COMPLETA - Não encontrado para: "${code}"\n`);
       res.status(404).json({
         success: false,
-        error: "Catalog not found",
+        error: "Catálogo não encontrado",
       });
     }
   } catch (error) {
-    console.error("[findCatalogPath] ERROR:", error);
+    console.error("[findCatalogPath] ERRO:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to find catalog",
+      error: "Falha ao buscar catálogo",
     });
   }
 };
 
-/**
- * Serve catalog file for download/sharing
- * NOTE: With Supabase Storage, files are already public and accessible via direct URLs
- * This endpoint is kept for backward compatibility but redirects to the Supabase URL
- * Usage: GET /api/catalogo/file?catalogPath=filename.docx
- */
 export const getCatalogFile: RequestHandler = async (req, res) => {
   try {
     const { catalogPath } = req.query;
@@ -99,26 +99,19 @@ export const getCatalogFile: RequestHandler = async (req, res) => {
     if (!catalogPath || typeof catalogPath !== "string") {
       res.status(400).json({
         success: false,
-        error: "Catalog path is required",
+        error: "Caminho do catálogo obrigatório",
       });
       return;
     }
 
-    // Extract the filename from the path
-    const fileName = path.basename(catalogPath);
-
-    // Generate Supabase Storage URL
-    const storageUrl = getCatalogStorageUrl(fileName);
-
-    console.log(`[getCatalogFile] Redirecting to Supabase Storage: ${fileName}`);
-
-    // Redirect to the Supabase Storage URL
-    res.redirect(storageUrl);
+    const proxyUrl = `/api/proxy-google-image?url=${encodeURIComponent(catalogPath)}`;
+    console.log(`[getCatalogFile] Redirecionando para proxy do Google Drive`);
+    res.redirect(proxyUrl);
   } catch (error) {
-    console.error("Error serving catalog file:", error);
+    console.error("Erro ao servir catálogo:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to serve catalog file",
+      error: "Falha ao servir catálogo",
     });
   }
 };
