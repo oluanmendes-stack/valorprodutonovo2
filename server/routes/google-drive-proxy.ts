@@ -19,11 +19,13 @@ export const proxyGoogleDriveImage: RequestHandler = async (req, res) => {
 
     console.log(`[GoogleDriveProxy] Proxying image: ${url.substring(0, 80)}...`);
 
-    // Fetch the image from Google Drive
+    // Fetch the image from Google Drive with better headers for auth
     const response = await fetch(url, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "image/*,*/*",
+        "Referer": "https://drive.google.com/",
       },
     });
 
@@ -40,18 +42,20 @@ export const proxyGoogleDriveImage: RequestHandler = async (req, res) => {
     const contentType =
       response.headers.get("content-type") || "image/jpeg";
 
-    // Set CORS headers to allow the response to be used in the browser
+    // Set CORS headers and cache headers
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET");
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 24 hours
 
-    // Stream the image directly to the response
+    // Use Cloudflare-safe response handling: convert to buffer and use res.end()
     const buffer = await response.arrayBuffer();
-    res.send(Buffer.from(buffer));
+    const nodeBuffer = Buffer.from(buffer);
+    res.setHeader("Content-Length", nodeBuffer.length);
+    res.end(nodeBuffer);
 
     console.log(
-      `[GoogleDriveProxy] Successfully proxied image (${buffer.byteLength} bytes)`
+      `[GoogleDriveProxy] Successfully proxied image (${nodeBuffer.length} bytes)`
     );
   } catch (error) {
     console.error("[GoogleDriveProxy] Error:", error);
