@@ -198,7 +198,19 @@ export const getImageFile: RequestHandler = async (req, res) => {
 
     // Try to serve from local filesystem first
     if (fs.existsSync(resolvedPath)) {
-      res.sendFile(resolvedPath);
+      const buffer = fs.readFileSync(resolvedPath);
+      const ext = path.extname(resolvedPath).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+      };
+      const contentType = mimeTypes[ext] || "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      res.send(buffer);
       return;
     }
 
