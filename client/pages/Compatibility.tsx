@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useImages } from "@/hooks/useImages";
 import { useSupabaseCompatibility } from "@/hooks/useSupabaseCompatibility";
+import { useCompatibilityGoogleDrive } from "@/hooks/useCompatibilityGoogleDrive";
 import {
   Search,
   Plus,
@@ -16,6 +17,7 @@ import {
   Upload,
   Check,
   Filter,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +35,7 @@ interface CompatibilityRecord {
 
 export default function Compatibility() {
   const { records, loading, fetchRecords, searchRecords, createRecord, updateRecord, deleteRecord, importRecords } = useSupabaseCompatibility();
+  const { fetchGoogleDriveImages, refreshGoogleDriveImages, getGoogleDriveImages, isLoadingForCode } = useCompatibilityGoogleDrive();
   const [data, setData] = useState<CompatibilityRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -82,7 +85,15 @@ export default function Compatibility() {
   // Update local data when records from Supabase change
   useEffect(() => {
     setData(records);
-  }, [records]);
+    // Automatically fetch Google Drive images for all records
+    records.forEach((record) => {
+      if (record.acessorio && record.acessorio.trim()) {
+        fetchGoogleDriveImages(record.acessorio).catch(err => {
+          console.error(`Failed to fetch Google Drive images for ${record.acessorio}:`, err);
+        });
+      }
+    });
+  }, [records, fetchGoogleDriveImages]);
 
   // Handle ESC key to close zoom modal
   useEffect(() => {
@@ -1076,6 +1087,55 @@ export default function Compatibility() {
                       </div>
                     )}
 
+                    {/* Google Drive Images */}
+                    {(() => {
+                      const gdImages = getGoogleDriveImages(record.acessorio);
+                      const isLoading = isLoadingForCode(record.acessorio);
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-muted-foreground font-semibold">
+                              FOTOS GOOGLE DRIVE ({gdImages.length})
+                            </p>
+                            <button
+                              onClick={() => refreshGoogleDriveImages(record.acessorio)}
+                              disabled={isLoading}
+                              className="p-1 hover:bg-primary/10 text-primary rounded transition disabled:opacity-50"
+                              title="Atualizar imagens do Google Drive"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                            </button>
+                          </div>
+                          {gdImages.length > 0 ? (
+                            <div className="grid grid-cols-3 gap-2">
+                              {gdImages.map((img) => (
+                                <div
+                                  key={img}
+                                  className="relative group rounded-lg overflow-hidden border border-primary/30 bg-muted cursor-pointer aspect-square"
+                                  onClick={() => setSelectedImageToZoom(img)}
+                                >
+                                  <img
+                                    src={img}
+                                    alt="Google Drive"
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-white font-medium text-sm bg-black/50 px-3 py-1 rounded">
+                                      EXPANDIR
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">
+                              {isLoading ? 'Carregando...' : 'Nenhuma imagem encontrada no Google Drive'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Actions */}
                     <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                       <button
@@ -1266,6 +1326,58 @@ export default function Compatibility() {
                                     </p>
                                   )}
                                 </div>
+                              </div>
+                              <div>
+                                {(() => {
+                                  const gdImages = getGoogleDriveImages(record.acessorio);
+                                  const isLoading = isLoadingForCode(record.acessorio);
+                                  return (
+                                    <>
+                                      <div className="flex items-center justify-between mb-3 mt-4">
+                                        <h4 className="font-semibold">
+                                          Fotos Google Drive ({gdImages.length})
+                                        </h4>
+                                        <button
+                                          onClick={() => refreshGoogleDriveImages(record.acessorio)}
+                                          disabled={isLoading}
+                                          className="p-1 hover:bg-primary/10 text-primary rounded transition disabled:opacity-50"
+                                          title="Atualizar imagens do Google Drive"
+                                        >
+                                          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                        </button>
+                                      </div>
+                                      {gdImages.length > 0 ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                          {gdImages.map((img) => (
+                                            <div
+                                              key={img}
+                                              className="relative group rounded-lg overflow-hidden border border-primary/30 bg-muted cursor-pointer"
+                                            >
+                                              <img
+                                                src={img}
+                                                alt="Google Drive"
+                                                className="w-full h-32 object-cover"
+                                              />
+                                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                  onClick={() => setSelectedImageToZoom(img)}
+                                                  className="p-2 bg-white/90 hover:bg-white rounded-lg text-lg font-medium transition"
+                                                  title="Ampliar imagem"
+                                                >
+                                                  🔍
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground italic">
+                                          {isLoading ? 'Carregando...' : 'Nenhuma imagem encontrada no Google Drive'}
+                                        </p>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </td>
