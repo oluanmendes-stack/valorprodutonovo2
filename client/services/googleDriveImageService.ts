@@ -67,7 +67,10 @@ async function searchImagesInFolder(folderId: string, code: string, folderName: 
           const proxyUrl = `/api/proxy-google-image?url=${encodeURIComponent(directLink)}`;
           images.push(proxyUrl);
           console.log(`[GoogleDrive]      ✅ ENCONTRADA (contém "${codeLower}")`);
-          console.log(`[GoogleDrive]      🔗 ${proxyUrl}`);
+          console.log(`[GoogleDrive]         Arquivo: ${file.name}`);
+          console.log(`[GoogleDrive]         ID: ${file.id}`);
+          console.log(`[GoogleDrive]         Link direto: ${directLink}`);
+          console.log(`[GoogleDrive]         URL proxy: ${proxyUrl}`);
         } else {
           console.log(`[GoogleDrive]      ❌ NÃO é match (não contém "${codeLower}")`);
         }
@@ -216,6 +219,8 @@ export async function findGoogleDriveImages(code: string): Promise<string[]> {
     if (images.length > 0) {
       images.forEach((url, idx) => {
         console.log(`[GoogleDrive]   ${idx + 1}. ${url}`);
+        // Test if proxy URL is accessible
+        console.log(`[GoogleDrive]      Testando URL: ${url.substring(0, 100)}...`);
       });
     }
     console.log(`[GoogleDrive] ======================================\n`);
